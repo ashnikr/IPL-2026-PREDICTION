@@ -109,24 +109,19 @@ export default function Earn() {
     setTimeout(() => setCopied(""), 2000);
   };
 
-  const handleSubscribe = async (plan) => {
-    if (!email) return setSubMsg("Enter your email first");
-    try {
-      await fetch(`${API_BASE}/register`, {
+  const handleSubscribe = (plan) => {
+    if (plan.name === "Free") {
+      if (!email) return setSubMsg("Enter your email first");
+      fetch(`${API_BASE}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, name: "" }),
-      });
-      if (plan.name === "Free") {
-        setSubMsg("Registered on Free plan! Start predicting now.");
-      } else {
-        setSubMsg(
-          `To upgrade to ${plan.name} (${plan.price}): Pay via UPI to ${plan.upiId} and send screenshot to @ashnikr on Telegram. Include your email: ${email}`
-        );
-      }
-    } catch {
-      setSubMsg("Registration failed. Try again.");
+      }).then(() => setSubMsg("Registered on Free plan!")).catch(() => setSubMsg("Try again."));
+      return;
     }
+    // Redirect to payment page
+    const planKey = plan.name === "Pro" ? "pro" : plan.name === "Elite" ? "elite" : "ultra_premium";
+    window.location.href = `/payment?plan=${planKey}`;
   };
 
   return (

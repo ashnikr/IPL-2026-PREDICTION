@@ -31,25 +31,21 @@ export default function Pricing() {
   }, []);
 
   const handleSubscribe = async (planKey) => {
-    if (!email) return setMessage("Enter your email first");
     setSelectedPlan(planKey);
 
-    // Register user
-    await fetch(`${API_BASE}/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, name: "" }),
-    });
-
     if (planKey === "free") {
+      if (!email) return setMessage("Enter your email first");
+      await fetch(`${API_BASE}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, name: "" }),
+      });
       setMessage("You're registered on the Free plan! Start predicting now.");
       return;
     }
 
-    // For paid plans - show payment info
-    setMessage(
-      `To upgrade to ${plans[planKey]?.name}: Contact us on Telegram @ashnikr or pay via UPI. Your email: ${email}`
-    );
+    // Redirect to payment page
+    window.location.href = `/payment?plan=${planKey}`;
   };
 
   return (

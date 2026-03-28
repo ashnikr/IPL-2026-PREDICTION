@@ -39,10 +39,11 @@ const sections = [
     ],
   },
   {
-    title: "Monetize",
+    title: "Subscribe",
     links: [
-      { to: "/earn", icon: <FiDollarSign />, label: "Earn Money" },
       { to: "/pricing", icon: <FiStar />, label: "Plans & Pricing" },
+      { to: "/payment?plan=pro", icon: <FiDollarSign />, label: "Pay via UPI" },
+      { to: "/earn", icon: <FiDollarSign />, label: "Earn Money" },
     ],
   },
 ];

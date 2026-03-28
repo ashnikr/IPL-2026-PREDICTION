@@ -105,6 +105,13 @@ def activate_premium(chat_id: str, plan: str = "pro"):
     _save_premium_users(users)
     return True
 
+UPI_ID = "YOUR_UPI_ID@upi"  # ← REPLACE with your real UPI ID
+UPI_NAME = "IPL2026 AI Predictions"
+
+def _upi_link(amount: int, note: str) -> str:
+    """Generate UPI deep link for payment."""
+    return f"upi://pay?pa={UPI_ID}&pn={UPI_NAME}&am={amount}&cu=INR&tn={note}"
+
 PAYWALL_MSG = """🔒 *This is a PRO feature!*
 
 You need a paid subscription to access this.
@@ -115,19 +122,17 @@ You need a paid subscription to access this.
 
 💎 *ELITE — ₹499/month*
 ✅ Everything in Pro
-✅ Post-toss predictions
-✅ 1st innings chase predictions
+✅ Post-toss & 1st innings predictions
 
 🚀 *ULTRA PREMIUM — ₹999/month*
-✅ Everything in Elite
-✅ Live ball-by-ball predictions
-✅ Real-time Telegram alerts
-✅ RL-corrected AI models
+✅ Live ball-by-ball + Real-time alerts
 
 💳 *How to pay:*
-1. Pay via UPI
-2. Send screenshot to @ashnikr
-3. Get instant access!
+/pay pro — Pay ₹199
+/pay elite — Pay ₹499
+/pay ultra — Pay ₹999
+
+After payment → send screenshot here → instant access!
 
 /subscribe for details"""
 
@@ -138,11 +143,10 @@ Live ball-by-ball predictions require *Ultra Premium*.
 🚀 *ULTRA PREMIUM — ₹999/month*
 ✅ Live ball-by-ball updates during matches
 ✅ Real-time win probability shifts
-✅ Instant wicket/boundary alerts
 ✅ Everything in Elite
 
-💳 Pay ₹999 via UPI → @ashnikr
-/subscribe for details"""
+💳 /pay ultra — Pay ₹999 via UPI
+After payment → send screenshot → instant access!"""
 
 FREE_LIMIT_MSG = """⚠️ *Daily limit reached!*
 
@@ -216,7 +220,7 @@ def handle_start():
 ✅ Real-time alerts during matches
 ✅ RL-corrected predictions
 
-💳 Contact @ashnikr to subscribe
+💳 /pay pro — Pay ₹199 via UPI
 /subscribe — Plans & pricing
 /my\\_plan — Check your plan"""
 
@@ -436,9 +440,104 @@ def handle_subscribe():
   ✅ Dedicated support
 
 💳 *How to subscribe:*
-1. Pay via UPI to @ashnikr
-2. Send payment screenshot
-3. Get instant access!"""
+/pay pro — Pay ₹199
+/pay elite — Pay ₹499
+/pay ultra — Pay ₹999
+
+After payment → send screenshot here → instant access!"""
+
+
+def handle_pay(args: list, chat_id: str):
+    """Generate UPI payment link for the user."""
+    plans_info = {
+        "pro": {"amount": 199, "name": "Pro"},
+        "elite": {"amount": 499, "name": "Elite"},
+        "ultra": {"amount": 999, "name": "Ultra Premium"},
+        "ultra_premium": {"amount": 999, "name": "Ultra Premium"},
+    }
+
+    if not args:
+        return """💳 *Choose a plan to pay:*
+
+/pay pro — ₹199/month
+/pay elite — ₹499/month
+/pay ultra — ₹999/month"""
+
+    plan_key = args[0].lower()
+    plan = plans_info.get(plan_key)
+    if not plan:
+        return f"❌ Unknown plan. Use: /pay pro, /pay elite, or /pay ultra"
+
+    amount = plan["amount"]
+    name = plan["name"]
+    note = f"IPL2026-{name}-{chat_id}"
+    upi_link = _upi_link(amount, note)
+
+    return f"""💳 *Pay for {name} Plan*
+━━━━━━━━━━━━━━━━━━━━━━
+
+💰 Amount: *₹{amount}*
+📱 UPI ID: `{UPI_ID}`
+
+*Option 1 — Click to Pay:*
+[Pay ₹{amount} via UPI]({upi_link})
+
+*Option 2 — Manual:*
+1. Open any UPI app (GPay/PhonePe/Paytm)
+2. Send ₹{amount} to: `{UPI_ID}`
+3. Note: `{note}`
+
+*Option 3 — Scan QR:*
+Open this link in browser:
+`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={upi_link}`
+
+━━━━━━━━━━━━━━━━━━━━━━
+✅ *After payment:*
+Send the payment screenshot here.
+Your *{name}* plan will be activated instantly!
+
+⚠️ _Include your chat ID in the note: `{chat_id}`_"""
+
+
+def handle_payment_screenshot(chat_id: str):
+    """Handle when user sends a photo (payment screenshot)."""
+    admin_id = os.getenv("ADMIN_CHAT_ID", "")
+
+    # Notify admin about pending payment
+    if admin_id:
+        _notify_admin_payment(chat_id, admin_id)
+
+    return f"""📸 *Payment Screenshot Received!*
+
+✅ Your payment is being verified.
+⏳ You'll be activated within 5-10 minutes.
+
+Your Chat ID: `{chat_id}`
+_(Admin has been notified)_
+
+If not activated in 15 mins, contact @ashnikr"""
+
+
+def _notify_admin_payment(chat_id: str, admin_id: str):
+    """Send payment notification to admin."""
+    base = f"https://api.telegram.org/bot{BOT_TOKEN}"
+    try:
+        plan = get_user_plan(chat_id)
+        requests.post(f"{base}/sendMessage", json={
+            "chat_id": admin_id,
+            "text": f"""💰 *New Payment Screenshot!*
+
+From: `{chat_id}`
+Current Plan: {plan}
+
+To activate:
+/activate {chat_id} pro
+/activate {chat_id} elite
+/activate {chat_id} ultra\\_premium""",
+            "parse_mode": "Markdown",
+        }, timeout=10)
+    except Exception:
+        pass
 
 
 def handle_liveball():
@@ -565,6 +664,10 @@ def process_message(text: str, chat_id: str = "") -> str:
     if cmd == "/rl_status" and str(chat_id) == str(ADMIN_CHAT_ID):
         return handle_rl_status()
 
+    # Payment command (always available)
+    if cmd == "/pay":
+        return handle_pay(args, str(chat_id))
+
     # Free commands (no payment needed)
     free_handlers = {
         "/start": lambda: handle_start(),
@@ -653,7 +756,34 @@ async def run_polling():
                 chat_id = msg.get("chat", {}).get("id")
                 text = msg.get("text", "")
 
-                if chat_id and text:
+                if not chat_id:
+                    continue
+
+                # Detect payment screenshots (photos)
+                if msg.get("photo") or msg.get("document"):
+                    logger.info(f"Photo/doc from chat_id={chat_id} (possible payment screenshot)")
+                    reply = handle_payment_screenshot(str(chat_id))
+
+                    # Forward the photo to admin
+                    admin_id = os.getenv("ADMIN_CHAT_ID", "")
+                    if admin_id and msg.get("photo"):
+                        try:
+                            requests.post(f"{base}/forwardMessage", json={
+                                "chat_id": admin_id,
+                                "from_chat_id": chat_id,
+                                "message_id": msg["message_id"],
+                            }, timeout=10)
+                        except Exception:
+                            pass
+
+                    requests.post(f"{base}/sendMessage", json={
+                        "chat_id": chat_id,
+                        "text": reply,
+                        "parse_mode": "Markdown",
+                    })
+                    continue
+
+                if text:
                     logger.info(f"Message from chat_id={chat_id}: {text[:50]}")
                     reply = process_message(text, chat_id=str(chat_id))
                     requests.post(f"{base}/sendMessage", json={

@@ -498,6 +498,83 @@ def revenue_estimate():
     return estimate_monthly_revenue()
 
 
+class PaymentRequest(BaseModel):
+    email: str
+    plan: str = Field(..., example="pro")
+    txn_id: str = ""
+    telegram_username: str = ""
+
+
+@app.post("/payment/submit")
+def submit_payment(req: PaymentRequest):
+    """Submit payment details for verification."""
+    from api.premium import PLANS
+    import json
+    from pathlib import Path
+    from datetime import datetime
+
+    if req.plan not in PLANS:
+        raise HTTPException(400, f"Invalid plan. Choose from: {list(PLANS.keys())}")
+
+    # Save payment for admin review
+    payments_file = Path("data/premium/pending_payments.json")
+    payments_file.parent.mkdir(parents=True, exist_ok=True)
+
+    pending = []
+    if payments_file.exists():
+        try:
+            pending = json.loads(payments_file.read_text())
+        except Exception:
+            pass
+
+    pending.append({
+        "email": req.email,
+        "plan": req.plan,
+        "amount": PLANS[req.plan]["price_inr"],
+        "txn_id": req.txn_id,
+        "telegram_username": req.telegram_username,
+        "submitted_at": datetime.now().isoformat(),
+        "status": "pending",
+    })
+    payments_file.write_text(json.dumps(pending, indent=2))
+
+    return {
+        "status": "submitted",
+        "message": f"Payment for {PLANS[req.plan]['name']} (₹{PLANS[req.plan]['price_inr']}) submitted. Will be activated within 5-10 minutes.",
+        "plan": req.plan,
+        "amount": PLANS[req.plan]["price_inr"],
+    }
+
+
+@app.get("/payment/pending")
+def get_pending_payments():
+    """Get pending payments (admin only)."""
+    import json
+    from pathlib import Path
+
+    payments_file = Path("data/premium/pending_payments.json")
+    if not payments_file.exists():
+        return {"pending": []}
+    try:
+        return {"pending": json.loads(payments_file.read_text())}
+    except Exception:
+        return {"pending": []}
+
+
+@app.get("/upi_info")
+def get_upi_info():
+    """Get UPI payment details for frontend."""
+    return {
+        "upi_id": "YOUR_UPI_ID@upi",  # ← REPLACE with your real UPI ID
+        "name": "IPL2026 AI Predictions",
+        "plans": {
+            "pro": {"amount": 199, "name": "Pro"},
+            "elite": {"amount": 499, "name": "Elite"},
+            "ultra_premium": {"amount": 999, "name": "Ultra Premium"},
+        },
+    }
+
+
 # ── Run ──────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
