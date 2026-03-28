@@ -67,7 +67,7 @@ const SUBSCRIPTION_PLANS = [
       "Head-to-head stats",
     ],
     recommended: true,
-    upiId: "ashnikr@paytm",  // REPLACE with your UPI ID
+    upiId: "nikhil.rajak2106@oksbi",  // REPLACE with your UPI ID
   },
   {
     name: "Elite",
@@ -80,7 +80,7 @@ const SUBSCRIPTION_PLANS = [
       "Telegram match alerts",
     ],
     recommended: false,
-    upiId: "ashnikr@paytm",  // REPLACE with your UPI ID
+    upiId: "nikhil.rajak2106@oksbi",  // REPLACE with your UPI ID
   },
   {
     name: "Ultra Premium",
@@ -94,7 +94,7 @@ const SUBSCRIPTION_PLANS = [
       "Dedicated support",
     ],
     recommended: false,
-    upiId: "ashnikr@paytm",  // REPLACE with your UPI ID
+    upiId: "nikhil.rajak2106@oksbi",  // REPLACE with your UPI ID
   },
 ];
 

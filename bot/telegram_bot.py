@@ -105,7 +105,7 @@ def activate_premium(chat_id: str, plan: str = "pro"):
     _save_premium_users(users)
     return True
 
-UPI_ID = "YOUR_UPI_ID@upi"  # ← REPLACE with your real UPI ID
+UPI_ID = "nikhil.rajak2106@oksbi"
 UPI_NAME = "IPL2026 AI Predictions"
 
 def _upi_link(amount: int, note: str) -> str:

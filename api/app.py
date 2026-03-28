@@ -565,7 +565,7 @@ def get_pending_payments():
 def get_upi_info():
     """Get UPI payment details for frontend."""
     return {
-        "upi_id": "YOUR_UPI_ID@upi",  # ← REPLACE with your real UPI ID
+        "upi_id": "nikhil.rajak2106@oksbi",
         "name": "IPL2026 AI Predictions",
         "plans": {
             "pro": {"amount": 199, "name": "Pro"},

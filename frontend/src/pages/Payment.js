@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { FiCheck, FiCopy, FiSmartphone, FiShield } from "react-icons/fi";
 
-const UPI_ID = "YOUR_UPI_ID@upi"; // ← REPLACE with your real UPI ID
+const UPI_ID = "nikhil.rajak2106@oksbi";
 const UPI_NAME = "IPL2026 AI Predictions";
 
 const PLANS = {
