@@ -7,16 +7,9 @@ export default function Dream11() {
   const [team1, setTeam1] = useState("");
   const [team2, setTeam2] = useState("");
   const [contest, setContest] = useState("mega");
-  const [xi1, setXi1] = useState("");
-  const [xi2, setXi2] = useState("");
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-
-  const parseNames = (text) => {
-    if (!text.trim()) return null;
-    return text.split(/[,\n]+/).map((n) => n.trim()).filter(Boolean);
-  };
 
   const handleGenerate = async () => {
     if (!team1 || !team2 || team1 === team2) return setError("Select two different teams");
@@ -24,12 +17,7 @@ export default function Dream11() {
     setLoading(true);
     setResult(null);
     try {
-      const payload = { team1, team2, contest_type: contest };
-      const xi1List = parseNames(xi1);
-      const xi2List = parseNames(xi2);
-      if (xi1List && xi1List.length >= 11) payload.playing_xi_team1 = xi1List;
-      if (xi2List && xi2List.length >= 11) payload.playing_xi_team2 = xi2List;
-      const res = await getDream11(payload);
+      const res = await getDream11({ team1, team2, contest_type: contest });
       setResult(res.data);
     } catch (e) {
       setError(e.response?.data?.detail || "Failed to generate team.");
@@ -42,11 +30,24 @@ export default function Dream11() {
     return colors[role] || "var(--text-muted)";
   };
 
+  const sourceLabel = (src) => {
+    const labels = {
+      "playing_xi_announced": "Live Playing XI (from Cricbuzz/ESPN)",
+      "cricapi": "Live Playing XI (CricAPI)",
+      "cricbuzz": "Live Playing XI (Cricbuzz)",
+      "espn": "Live Playing XI (ESPNCricinfo)",
+      "likely_xi": "Predicted Likely XI (from squads)",
+      "squad_prediction": "Predicted Likely XI (from squads)",
+      "manual": "User Provided XI",
+    };
+    return labels[src] || src || "Auto-detected";
+  };
+
   return (
     <div>
       <div className="page-header">
         <h1>Dream11 Fantasy XI</h1>
-        <p>AI-optimized team — only picks from actual Playing XI, not benched players</p>
+        <p>Auto-fetches actual Playing XI from Cricbuzz/ESPN — picks only from players on the field</p>
       </div>
 
       <div className="grid-2">
@@ -63,48 +64,53 @@ export default function Dream11() {
             </select>
           </div>
 
-          {/* Playing XI Input */}
-          <div className="form-group">
-            <label>{team1 ? `${team1} — Playing XI` : "Team 1 Playing XI"} (paste 11 names, comma or newline separated)</label>
-            <textarea
-              className="form-control"
-              rows={4}
-              value={xi1}
-              onChange={(e) => setXi1(e.target.value)}
-              placeholder="e.g. Ruturaj Gaikwad, Devon Conway, Ravindra Jadeja, ..."
-              style={{ resize: "vertical", fontSize: 13 }}
-            />
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-              {parseNames(xi1)?.length || 0}/11 players entered {parseNames(xi1)?.length >= 11 ? " — Using your XI" : " — Leave empty to auto-detect"}
-            </span>
-          </div>
-
-          <div className="form-group">
-            <label>{team2 ? `${team2} — Playing XI` : "Team 2 Playing XI"} (paste 11 names)</label>
-            <textarea
-              className="form-control"
-              rows={4}
-              value={xi2}
-              onChange={(e) => setXi2(e.target.value)}
-              placeholder="e.g. Travis Head, Abhishek Sharma, Heinrich Klaasen, ..."
-              style={{ resize: "vertical", fontSize: 13 }}
-            />
-            <span style={{ fontSize: 11, color: "var(--text-muted)" }}>
-              {parseNames(xi2)?.length || 0}/11 players entered {parseNames(xi2)?.length >= 11 ? " — Using your XI" : " — Leave empty to auto-detect"}
-            </span>
+          <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16, padding: "8px 12px", background: "var(--bg-secondary)", borderRadius: 8 }}>
+            Playing XI is auto-fetched from Cricbuzz / ESPNCricinfo / CricAPI. If match hasn't started, it uses the predicted likely XI from squad data.
           </div>
 
           {error && <div className="error-box" style={{ marginBottom: 16 }}>{error}</div>}
 
           <button className="btn btn-primary" onClick={handleGenerate} disabled={loading} style={{ width: "100%" }}>
-            {loading ? "Generating..." : "Generate Dream11 XI"}
+            {loading ? "Fetching Playing XI & Generating..." : "Generate Dream11 XI"}
           </button>
         </div>
 
         <div>
-          {loading && <Loading text="Picking best 11 from actual Playing XI..." />}
+          {loading && <Loading text="Auto-fetching Playing XI from live sources & generating best 11..." />}
           {result && (
             <div>
+              {/* XI Source */}
+              <div className="card" style={{ marginBottom: 16, padding: 16 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: 13, color: "var(--text-secondary)" }}>Data Source:</span>
+                  <span className={`badge ${result.xi_source === "playing_xi_announced" || result.xi_source === "cricbuzz" || result.xi_source === "espn" ? "badge-green" : "badge-orange"}`}>
+                    {sourceLabel(result.xi_source)}
+                  </span>
+                </div>
+              </div>
+
+              {/* Playing XI from both teams */}
+              {(result.playing_xi_team1?.length > 0 || result.playing_xi_team2?.length > 0) && (
+                <div className="grid-2" style={{ marginBottom: 16 }}>
+                  <div className="card" style={{ padding: 16 }}>
+                    <h4 style={{ fontSize: 14, marginBottom: 8, color: "var(--accent)" }}>{team1} — Playing XI</h4>
+                    {result.playing_xi_team1?.map((name, i) => (
+                      <div key={i} style={{ fontSize: 13, padding: "3px 0", color: "var(--text-secondary)" }}>
+                        {i + 1}. {name}
+                      </div>
+                    ))}
+                  </div>
+                  <div className="card" style={{ padding: 16 }}>
+                    <h4 style={{ fontSize: 14, marginBottom: 8, color: "var(--blue)" }}>{team2} — Playing XI</h4>
+                    {result.playing_xi_team2?.map((name, i) => (
+                      <div key={i} style={{ fontSize: 13, padding: "3px 0", color: "var(--text-secondary)" }}>
+                        {i + 1}. {name}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Summary */}
               <div className="grid-3" style={{ marginBottom: 20 }}>
                 <div className="stat-card">
@@ -149,7 +155,7 @@ export default function Dream11() {
 
               {/* Full Team */}
               <div className="card">
-                <h3 className="card-title" style={{ marginBottom: 16 }}>Fantasy XI (from Playing XI only)</h3>
+                <h3 className="card-title" style={{ marginBottom: 16 }}>Best Fantasy XI (from actual Playing XI)</h3>
                 {result.team?.map((p, i) => (
                   <div className="player-card" key={i} style={{ marginBottom: 8 }}>
                     <div>

@@ -139,7 +139,26 @@ class FantasyTeamGenerator:
         """
         logger.info(f"Generating Fantasy XI: {team1} vs {team2} ({contest_type} contest)")
 
-        # Step 1: Get the actual Playing XI (22 players on the field)
+        # Step 1: Auto-fetch Playing XI from live sources (Cricbuzz/ESPN/CricAPI)
+        xi_source = "manual"
+        if not playing_xi_team1 or not playing_xi_team2:
+            try:
+                from scrapers.playing_xi_scraper import fetch_playing_xi
+                live_xi = fetch_playing_xi(team1, team2)
+                if live_xi:
+                    xi_source = live_xi.get("match_status", "auto")
+                    if not playing_xi_team1 and live_xi.get("team1", {}).get("playing_xi"):
+                        t1_xi = live_xi["team1"]["playing_xi"]
+                        playing_xi_team1 = [p["name"] for p in t1_xi]
+                        logger.info(f"  Auto-fetched {team1} XI from {live_xi['team1'].get('source', 'unknown')}: {playing_xi_team1}")
+                    if not playing_xi_team2 and live_xi.get("team2", {}).get("playing_xi"):
+                        t2_xi = live_xi["team2"]["playing_xi"]
+                        playing_xi_team2 = [p["name"] for p in t2_xi]
+                        logger.info(f"  Auto-fetched {team2} XI from {live_xi['team2'].get('source', 'unknown')}: {playing_xi_team2}")
+            except Exception as e:
+                logger.warning(f"  Auto-fetch Playing XI failed: {e}")
+
+        # Step 2: Get the actual Playing XI (22 players on the field)
         t1_playing = self._get_playing_xi(team1, playing_xi_team1)
         t2_playing = self._get_playing_xi(team2, playing_xi_team2)
 
@@ -201,6 +220,9 @@ class FantasyTeamGenerator:
             "team1_count": sum(1 for p in team if p["team"] == team1),
             "team2_count": sum(1 for p in team if p["team"] == team2),
             "expected_points": sum(p.get("expected_pts", p["avg_pts"]) for p in team),
+            "xi_source": xi_source,
+            "playing_xi_team1": [p["name"] for p in t1_playing],
+            "playing_xi_team2": [p["name"] for p in t2_playing],
             "llm_insight": llm_insight,
         }
 

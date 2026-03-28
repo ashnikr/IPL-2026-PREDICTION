@@ -287,6 +287,14 @@ def dream11_team(req: Dream11Request):
     return result
 
 
+@app.get("/playing_xi/{team1}/{team2}")
+def get_playing_xi(team1: str, team2: str):
+    """Auto-fetch Playing XI from Cricbuzz/ESPN/CricAPI."""
+    from scrapers.playing_xi_scraper import fetch_playing_xi
+    result = fetch_playing_xi(team1, team2)
+    return result
+
+
 # ── NEW: Live Mid-Match Prediction ────────────────────────────────────
 
 class LiveRequest(BaseModel):
