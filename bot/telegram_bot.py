@@ -44,6 +44,7 @@ PREMIUM_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 FREE_DAILY_LIMIT = 0  # Free users get ZERO predictions — must pay
 PREMIUM_COMMANDS = {"/predict", "/dream11", "/fantasy", "/live", "/agents"}  # ALL locked
+ULTRA_PREMIUM_COMMANDS = {"/liveball"}  # Ultra-premium only
 
 def _load_premium_users():
     if PREMIUM_FILE.exists():
@@ -57,7 +58,13 @@ def is_premium(chat_id: str) -> bool:
     """Check if user has paid subscription."""
     users = _load_premium_users()
     user = users.get(str(chat_id), {})
-    return user.get("plan", "free") in ("pro", "elite")
+    return user.get("plan", "free") in ("pro", "elite", "ultra_premium")
+
+def is_ultra_premium(chat_id: str) -> bool:
+    """Check if user has ultra-premium subscription."""
+    users = _load_premium_users()
+    user = users.get(str(chat_id), {})
+    return user.get("plan", "free") in ("ultra_premium",)
 
 def get_user_plan(chat_id: str) -> str:
     users = _load_premium_users()
@@ -100,21 +107,41 @@ def activate_premium(chat_id: str, plan: str = "pro"):
 
 PAYWALL_MSG = """🔒 *This is a PRO feature!*
 
-You need a *Pro* or *Elite* subscription to access this.
+You need a paid subscription to access this.
 
 ⭐ *PRO — ₹299/month*
-✅ Dream11 Fantasy XI
-✅ Live mid-match predictor
-✅ 10 AI Agents + LLM
+✅ Match predictions + Dream11 XI
+✅ 10 AI Agents + LLM analysis
 
 💎 *ELITE — ₹799/month*
-✅ Everything in Pro + Alerts
+✅ Everything in Pro
+✅ Post-toss predictions
+✅ 1st innings chase predictions
+
+🚀 *ULTRA PREMIUM — ₹1499/month*
+✅ Everything in Elite
+✅ Live ball-by-ball predictions
+✅ Real-time Telegram alerts
+✅ RL-corrected AI models
 
 💳 *How to pay:*
-1. Pay ₹299 via UPI
+1. Pay via UPI
 2. Send screenshot to @ashnikr
 3. Get instant access!
 
+/subscribe for details"""
+
+ULTRA_PAYWALL_MSG = """🔒 *Ultra-Premium Feature!*
+
+Live ball-by-ball predictions require *Ultra Premium*.
+
+🚀 *ULTRA PREMIUM — ₹1499/month*
+✅ Live ball-by-ball updates during matches
+✅ Real-time win probability shifts
+✅ Instant wicket/boundary alerts
+✅ Everything in Elite
+
+💳 Pay ₹1499 via UPI → @ashnikr
 /subscribe for details"""
 
 FREE_LIMIT_MSG = """⚠️ *Daily limit reached!*
@@ -166,8 +193,8 @@ def handle_start():
     return """🏏 *IPL 2026 AI Prediction Bot*
 ━━━━━━━━━━━━━━━━━━━━━━
 
-🤖 10 AI Agents + 8 ML Models + LLM Analysis
-🎯 85%+ Accuracy | Auto Playing XI
+🤖 10 AI Agents + 8 ML Models + RL Self-Correction
+🎯 85%+ Accuracy | Auto Playing XI | Live Updates
 
 *FREE Commands:*
 /form — Team form & momentum
@@ -175,16 +202,22 @@ def handle_start():
 /teams — All IPL teams
 /subscribe — View plans
 
-🔒 *PAID Features (₹299/month):*
+⭐ *PRO — ₹299/month:*
 /predict CSK MI — AI Match Prediction
 /dream11 CSK MI — Dream11 Fantasy XI
-/live CSK MI 185 4 — Live Mid-Match
 /agents CSK MI — 10 AI Agents + LLM
 
-💳 *Pay ₹299 via UPI → Get instant access!*
-Contact @ashnikr to subscribe
+💎 *ELITE — ₹799/month:*
+✅ Post-toss auto-predictions
+✅ 1st innings chase predictions
 
-/subscribe — Plans & payment info
+🚀 *ULTRA PREMIUM — ₹1499/month:*
+/liveball — Live ball-by-ball AI updates
+✅ Real-time alerts during matches
+✅ RL-corrected predictions
+
+💳 Contact @ashnikr to subscribe
+/subscribe — Plans & pricing
 /my\\_plan — Check your plan"""
 
 
@@ -381,27 +414,113 @@ def handle_subscribe():
     return """💎 *Upgrade Your Plan*
 ━━━━━━━━━━━━━━━━━━━━━━
 
-🆓 *FREE* — 5 predictions/day
-  Basic match predictor, schedule, news
+🆓 *FREE* — Form, news, teams only
+  ❌ No predictions
 
 ⭐ *PRO — ₹299/month ($3.99)*
-  ✅ Unlimited predictions
-  ✅ Dream11 Fantasy XI
-  ✅ Live mid-match predictor
+  ✅ Unlimited match predictions
+  ✅ Dream11 Fantasy XI (auto Playing XI)
   ✅ 10 AI Agents + LLM analysis
-  ✅ News & sentiment tracker
+  ✅ Head-to-head stats
 
 💎 *ELITE — ₹799/month ($9.99)*
   ✅ Everything in Pro
-  ✅ Telegram match alerts
+  ✅ Post-toss auto-predictions (sent to you!)
+  ✅ 1st innings chase predictions
   ✅ Priority API access
-  ✅ Accuracy reports
-  ✅ Early predictions
 
-🔗 *Subscribe now:*
-Contact @ashnikr to upgrade your plan!
+🚀 *ULTRA PREMIUM — ₹1499/month ($17.99)*
+  ✅ Everything in Elite
+  ✅ Live ball-by-ball AI predictions
+  ✅ Real-time alerts (wicket, boundary, milestone)
+  ✅ RL-corrected model accuracy
+  ✅ Dedicated support
 
-💳 Payment: UPI / Razorpay / PayPal"""
+💳 *How to subscribe:*
+1. Pay via UPI to @ashnikr
+2. Send payment screenshot
+3. Get instant access!
+
+Payment: UPI / Razorpay / PayPal"""
+
+
+def handle_liveball():
+    """Fetch current live match score and AI prediction."""
+    cricapi_key = os.getenv("CRICAPI_KEY", "")
+    if not cricapi_key:
+        return "❌ Live data not available right now."
+
+    try:
+        resp = requests.get(
+            "https://api.cricapi.com/v1/currentMatches",
+            params={"apikey": cricapi_key, "offset": 0},
+            timeout=15,
+        )
+        if not resp.ok:
+            return "❌ Could not fetch live data."
+
+        matches = resp.json().get("data", [])
+        live_matches = [m for m in matches if m.get("matchStarted") and not m.get("matchEnded")]
+
+        if not live_matches:
+            return "📻 No live IPL matches right now. Check back during match time!"
+
+        texts = []
+        for match in live_matches[:2]:
+            teams = match.get("teams", [])
+            scores = match.get("score", [])
+            status = match.get("status", "In Progress")
+
+            score_text = ""
+            for s in scores:
+                inning = s.get("inning", "")
+                r = s.get("r", 0)
+                w = s.get("w", 0)
+                o = s.get("o", 0)
+                score_text += f"  {inning}: *{r}/{w}* ({o} ov)\n"
+
+            texts.append(f"""🏏 *LIVE: {teams[0] if teams else '?'} vs {teams[1] if len(teams) > 1 else '?'}*
+
+{score_text}
+📝 {status}
+
+_Real-time updates active for Ultra Premium members_""")
+
+        return "\n━━━━━━━━━━━━━━━━━━━━━━\n".join(texts)
+
+    except Exception as e:
+        return f"❌ Error: {str(e)[:100]}"
+
+
+def handle_rl_status():
+    """Show RL training status (admin only)."""
+    try:
+        from models.rl_trainer import RLTrainer
+        rl = RLTrainer()
+        report = rl.get_rl_report()
+
+        if report.get("total_matches", 0) == 0:
+            return "🤖 *RL Status:* No matches processed yet. Auto-training will start after first completed match."
+
+        return f"""🤖 *RL Self-Correction Status*
+━━━━━━━━━━━━━━━━━━━━━━
+
+📊 Total Matches: {report['total_matches']}
+✅ Correct: {report['correct_predictions']}
+❌ Wrong: {report['wrong_predictions']}
+🎯 Accuracy: {report['overall_accuracy']:.1%}
+
+📈 Rolling (last 10): {report['rolling_accuracy_10']:.1%}
+📈 Rolling (last 5): {report['rolling_accuracy_5']:.1%}
+
+💰 Total Reward: {report['total_reward']}
+📊 Avg Reward: {report['avg_reward']}
+
+🔄 Retrains Done: {report['retrains_done']}
+📈 Trend: {report['improvement_trend']}"""
+
+    except Exception as e:
+        return f"❌ RL Status Error: {str(e)[:100]}"
 
 
 def handle_teams():
@@ -431,20 +550,23 @@ def process_message(text: str, chat_id: str = "") -> str:
 
     # Admin commands (only you can use these)
     if cmd == "/activate" and str(chat_id) == str(ADMIN_CHAT_ID):
-        # /activate 123456789 pro
+        # /activate 123456789 pro|elite|ultra_premium
         if len(args) >= 1:
             target_id = args[0]
             plan = args[1] if len(args) > 1 else "pro"
             activate_premium(target_id, plan)
             return f"✅ Activated *{plan}* plan for user `{target_id}`"
-        return "Usage: /activate <chat_id> <pro|elite>"
+        return "Usage: /activate <chat_id> <pro|elite|ultra\\_premium>"
 
     if cmd == "/users" and str(chat_id) == str(ADMIN_CHAT_ID):
         users = _load_premium_users()
-        paid = {k: v for k, v in users.items() if v.get("plan") in ("pro", "elite")}
+        paid = {k: v for k, v in users.items() if v.get("plan") in ("pro", "elite", "ultra_premium")}
         return f"Total users: {len(users)}\nPaid users: {len(paid)}\n\n" + "\n".join(
             f"  `{k}` — {v.get('plan', 'free')}" for k, v in paid.items()
         ) if paid else f"Total users: {len(users)}\nNo paid users yet."
+
+    if cmd == "/rl_status" and str(chat_id) == str(ADMIN_CHAT_ID):
+        return handle_rl_status()
 
     # Free commands (no payment needed)
     free_handlers = {
@@ -468,6 +590,16 @@ def process_message(text: str, chat_id: str = "") -> str:
             logger.error(f"Error handling {cmd}: {e}")
             return f"❌ Something went wrong: {str(e)[:100]}"
 
+    # ULTRA-PREMIUM commands — live ball-by-ball
+    if cmd == "/liveball":
+        if not is_ultra_premium(chat_id) and str(chat_id) != str(ADMIN_CHAT_ID):
+            return ULTRA_PAYWALL_MSG
+        try:
+            return handle_liveball()
+        except Exception as e:
+            logger.error(f"Error handling /liveball: {e}")
+            return f"❌ Something went wrong: {str(e)[:100]}"
+
     # PAID commands — check subscription
     paid_handlers = {
         "/predict": lambda: handle_predict(args),
@@ -479,7 +611,6 @@ def process_message(text: str, chat_id: str = "") -> str:
 
     if cmd in paid_handlers:
         if not is_premium(chat_id):
-            # Show teaser but lock the actual result
             track_free_usage(chat_id)
             return PAYWALL_MSG
         try:
@@ -526,6 +657,7 @@ async def run_polling():
                 text = msg.get("text", "")
 
                 if chat_id and text:
+                    logger.info(f"Message from chat_id={chat_id}: {text[:50]}")
                     reply = process_message(text, chat_id=str(chat_id))
                     requests.post(f"{base}/sendMessage", json={
                         "chat_id": chat_id,

@@ -7,6 +7,7 @@ const PLAN_ICONS = {
   free: <FiZap size={28} />,
   pro: <FiStar size={28} />,
   elite: <FiAward size={28} />,
+  ultra_premium: <FiAward size={28} />,
   api: <FiZap size={28} />,
 };
 
@@ -14,6 +15,7 @@ const PLAN_COLORS = {
   free: "var(--text-muted)",
   pro: "var(--accent)",
   elite: "var(--purple)",
+  ultra_premium: "var(--green)",
   api: "var(--cyan)",
 };
 
@@ -87,6 +89,16 @@ export default function Pricing() {
               overflow: "hidden",
             }}
           >
+            {key === "ultra_premium" && (
+              <div style={{
+                position: "absolute", top: 12, right: -30,
+                background: "linear-gradient(135deg, #00c853, #00e676)", color: "white",
+                padding: "2px 40px", fontSize: 11, fontWeight: 700,
+                transform: "rotate(45deg)",
+              }}>
+                BEST VALUE
+              </div>
+            )}
             {key === "pro" && (
               <div style={{
                 position: "absolute", top: 12, right: -30,

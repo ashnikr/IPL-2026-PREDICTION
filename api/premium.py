@@ -83,6 +83,28 @@ PLANS = {
         "api_access": True,
         "telegram_alerts": True,
     },
+    "ultra_premium": {
+        "name": "Ultra Premium",
+        "price_inr": 1499,
+        "price_usd": 17.99,
+        "predictions_per_day": -1,
+        "features": [
+            "Everything in Elite",
+            "Live ball-by-ball predictions",
+            "1st innings chase predictions",
+            "Real-time Telegram alerts",
+            "Post-toss instant predictions",
+            "RL-corrected model weights",
+            "Priority support",
+        ],
+        "agents": True,
+        "dream11": True,
+        "live": True,
+        "news": True,
+        "api_access": True,
+        "telegram_alerts": True,
+        "live_bbb": True,
+    },
     "api": {
         "name": "API Developer",
         "price_inr": 1999,
@@ -101,6 +123,7 @@ PLANS = {
         "news": True,
         "api_access": True,
         "telegram_alerts": True,
+        "live_bbb": True,
     },
 }
 

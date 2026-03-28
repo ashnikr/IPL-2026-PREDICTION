@@ -13,12 +13,52 @@ Each provider generates cricket match analysis with consistent output format.
 import json
 import os
 import re
+import time
 from abc import ABC, abstractmethod
 
 import requests
 
 from utils.logger import logger
 from config.settings import settings
+
+
+class RateLimitTracker:
+    """Track rate limits per provider to avoid hitting them repeatedly."""
+
+    def __init__(self):
+        self._cooldowns = {}  # provider_name -> (cooldown_until, consecutive_failures)
+
+    def mark_rate_limited(self, provider_name: str, retry_after: int = 60):
+        """Mark a provider as rate-limited."""
+        failures = self._cooldowns.get(provider_name, (0, 0))[1] + 1
+        # Exponential backoff: 60s, 120s, 240s, max 600s
+        wait = min(retry_after * (2 ** (failures - 1)), 600)
+        self._cooldowns[provider_name] = (time.time() + wait, failures)
+        logger.warning(f"LLM: {provider_name} rate-limited, cooldown {wait}s (failure #{failures})")
+
+    def is_cooled_down(self, provider_name: str) -> bool:
+        """Check if provider has cooled down from rate limit."""
+        if provider_name not in self._cooldowns:
+            return True
+        cooldown_until, _ = self._cooldowns[provider_name]
+        if time.time() >= cooldown_until:
+            # Reset failures on successful cooldown
+            self._cooldowns.pop(provider_name, None)
+            return True
+        return False
+
+    def clear(self, provider_name: str):
+        """Clear rate limit for a provider after successful call."""
+        self._cooldowns.pop(provider_name, None)
+
+
+_rate_tracker = RateLimitTracker()
+
+
+def _is_rate_limit_error(error) -> bool:
+    """Detect if an error is a rate limit (429) or quota exceeded."""
+    err_str = str(error).lower()
+    return any(k in err_str for k in ["429", "rate limit", "quota", "too many requests", "resource exhausted"])
 
 
 class LLMProvider(ABC):
@@ -233,10 +273,16 @@ Note: This is a structured analysis. Set up a free Gemini or Groq API key for AI
 
 class LLMChain:
     """
-    Multi-provider LLM chain with automatic fallback.
+    Multi-provider LLM chain with automatic failover and rate limit detection.
 
     Tries providers in priority order:
     1. Gemini (free) → 2. Groq (free) → 3. OpenAI (paid) → 4. Local fallback
+
+    Rate limit handling:
+    - Detects 429/quota errors automatically
+    - Exponential backoff per provider (60s → 120s → 240s → 600s max)
+    - Skips rate-limited providers until cooldown expires
+    - Logs every failover so you can monitor usage
     """
 
     def __init__(self):
@@ -247,6 +293,8 @@ class LLMChain:
             LocalFallbackProvider(),
         ]
         self._active_provider = None
+        self._call_count = 0
+        self._failover_log = []
         self._detect_provider()
 
     def _detect_provider(self):
@@ -256,24 +304,58 @@ class LLMChain:
                 self._active_provider = provider
                 logger.info(f"LLM Provider: {provider.name}")
                 return
-        # Should never reach here since LocalFallback is always available
         self._active_provider = self.providers[-1]
 
     @property
     def active_provider_name(self) -> str:
         return self._active_provider.name if self._active_provider else "None"
 
+    def get_failover_status(self) -> dict:
+        """Get current failover status for monitoring."""
+        return {
+            "active_provider": self.active_provider_name,
+            "total_calls": self._call_count,
+            "recent_failovers": self._failover_log[-10:],
+            "provider_status": {
+                p.name: {
+                    "available": p.is_available(),
+                    "cooled_down": _rate_tracker.is_cooled_down(p.name),
+                }
+                for p in self.providers
+            },
+        }
+
     def generate(self, prompt: str, max_tokens: int = 1024, temperature: float = 0.7) -> str:
-        """Generate text using the provider chain with fallback."""
+        """Generate text using the provider chain with automatic failover."""
+        self._call_count += 1
+
         for provider in self.providers:
             if not provider.is_available():
+                continue
+            # Skip providers still in cooldown from rate limit
+            if not _rate_tracker.is_cooled_down(provider.name):
+                logger.info(f"LLM: Skipping {provider.name} (rate-limited, cooling down)")
                 continue
             try:
                 result = provider.generate(prompt, max_tokens, temperature)
                 if result:
+                    _rate_tracker.clear(provider.name)
                     return result
             except Exception as e:
-                logger.warning(f"{provider.name} failed: {e}, trying next provider...")
+                if _is_rate_limit_error(e):
+                    _rate_tracker.mark_rate_limited(provider.name)
+                    self._failover_log.append({
+                        "time": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "from": provider.name,
+                        "reason": "rate_limit",
+                    })
+                else:
+                    logger.warning(f"{provider.name} failed: {e}")
+                    self._failover_log.append({
+                        "time": time.strftime("%Y-%m-%d %H:%M:%S"),
+                        "from": provider.name,
+                        "reason": str(e)[:100],
+                    })
                 continue
 
         # Ultimate fallback
