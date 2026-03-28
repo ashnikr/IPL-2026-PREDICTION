@@ -67,6 +67,8 @@ class PredictionResponse(BaseModel):
     team2_win_prob: float
     confidence: float
     predicted_winner: str
+    toss_winner: Optional[str] = None
+    toss_decision: Optional[str] = None
     key_factors: list[str]
     model_predictions: dict
     venue: Optional[str] = None
@@ -158,6 +160,8 @@ def predict_match(req: MatchPredictionRequest):
         model_predictions=pred["model_predictions"],
         venue=req.venue,
         date=str(date.today()),
+        toss_winner=req.toss_winner,
+        toss_decision=req.toss_decision,
     )
 
 
