@@ -109,16 +109,16 @@ PAYWALL_MSG = """🔒 *This is a PRO feature!*
 
 You need a paid subscription to access this.
 
-⭐ *PRO — ₹299/month*
+⭐ *PRO — ₹199/month*
 ✅ Match predictions + Dream11 XI
 ✅ 10 AI Agents + LLM analysis
 
-💎 *ELITE — ₹799/month*
+💎 *ELITE — ₹499/month*
 ✅ Everything in Pro
 ✅ Post-toss predictions
 ✅ 1st innings chase predictions
 
-🚀 *ULTRA PREMIUM — ₹1499/month*
+🚀 *ULTRA PREMIUM — ₹999/month*
 ✅ Everything in Elite
 ✅ Live ball-by-ball predictions
 ✅ Real-time Telegram alerts
@@ -135,13 +135,13 @@ ULTRA_PAYWALL_MSG = """🔒 *Ultra-Premium Feature!*
 
 Live ball-by-ball predictions require *Ultra Premium*.
 
-🚀 *ULTRA PREMIUM — ₹1499/month*
+🚀 *ULTRA PREMIUM — ₹999/month*
 ✅ Live ball-by-ball updates during matches
 ✅ Real-time win probability shifts
 ✅ Instant wicket/boundary alerts
 ✅ Everything in Elite
 
-💳 Pay ₹1499 via UPI → @ashnikr
+💳 Pay ₹999 via UPI → @ashnikr
 /subscribe for details"""
 
 FREE_LIMIT_MSG = """⚠️ *Daily limit reached!*
@@ -202,16 +202,16 @@ def handle_start():
 /teams — All IPL teams
 /subscribe — View plans
 
-⭐ *PRO — ₹299/month:*
+⭐ *PRO — ₹199/month:*
 /predict CSK MI — AI Match Prediction
 /dream11 CSK MI — Dream11 Fantasy XI
 /agents CSK MI — 10 AI Agents + LLM
 
-💎 *ELITE — ₹799/month:*
+💎 *ELITE — ₹499/month:*
 ✅ Post-toss auto-predictions
 ✅ 1st innings chase predictions
 
-🚀 *ULTRA PREMIUM — ₹1499/month:*
+🚀 *ULTRA PREMIUM — ₹999/month:*
 /liveball — Live ball-by-ball AI updates
 ✅ Real-time alerts during matches
 ✅ RL-corrected predictions
@@ -417,19 +417,18 @@ def handle_subscribe():
 🆓 *FREE* — Form, news, teams only
   ❌ No predictions
 
-⭐ *PRO — ₹299/month ($3.99)*
+⭐ *PRO — ₹199/month ($2.49)*
   ✅ Unlimited match predictions
   ✅ Dream11 Fantasy XI (auto Playing XI)
   ✅ 10 AI Agents + LLM analysis
   ✅ Head-to-head stats
 
-💎 *ELITE — ₹799/month ($9.99)*
+💎 *ELITE — ₹499/month ($5.99)*
   ✅ Everything in Pro
   ✅ Post-toss auto-predictions (sent to you!)
   ✅ 1st innings chase predictions
-  ✅ Priority API access
 
-🚀 *ULTRA PREMIUM — ₹1499/month ($17.99)*
+🚀 *ULTRA PREMIUM — ₹999/month ($11.99)*
   ✅ Everything in Elite
   ✅ Live ball-by-ball AI predictions
   ✅ Real-time alerts (wicket, boundary, milestone)
@@ -439,9 +438,7 @@ def handle_subscribe():
 💳 *How to subscribe:*
 1. Pay via UPI to @ashnikr
 2. Send payment screenshot
-3. Get instant access!
-
-Payment: UPI / Razorpay / PayPal"""
+3. Get instant access!"""
 
 
 def handle_liveball():

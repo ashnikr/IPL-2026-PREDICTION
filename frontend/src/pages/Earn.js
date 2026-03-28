@@ -52,17 +52,16 @@ const SUBSCRIPTION_PLANS = [
   {
     name: "Free",
     price: "₹0",
-    features: ["5 predictions/day", "Basic match predictor", "Schedule & news"],
+    features: ["Form & news only", "No predictions", "Schedule & teams"],
     recommended: false,
   },
   {
     name: "Pro",
-    price: "₹299/mo",
-    priceUSD: "$3.99/mo",
+    price: "₹199/mo",
+    priceUSD: "$2.49/mo",
     features: [
       "Unlimited predictions",
       "Dream11 Fantasy XI",
-      "Live mid-match predictor",
       "10 AI Agents + LLM",
       "News & sentiment analysis",
       "Head-to-head stats",
@@ -72,14 +71,26 @@ const SUBSCRIPTION_PLANS = [
   },
   {
     name: "Elite",
-    price: "₹799/mo",
-    priceUSD: "$9.99/mo",
+    price: "₹499/mo",
+    priceUSD: "$5.99/mo",
     features: [
       "Everything in Pro",
+      "Post-toss auto-predictions",
+      "1st innings chase predictions",
       "Telegram match alerts",
-      "Priority API access",
-      "Early predictions (before toss)",
-      "Accuracy reports",
+    ],
+    recommended: false,
+    upiId: "ashnikr@paytm",  // REPLACE with your UPI ID
+  },
+  {
+    name: "Ultra Premium",
+    price: "₹999/mo",
+    priceUSD: "$11.99/mo",
+    features: [
+      "Everything in Elite",
+      "Live ball-by-ball predictions",
+      "Real-time Telegram alerts",
+      "RL-corrected AI models",
       "Dedicated support",
     ],
     recommended: false,
@@ -122,7 +133,7 @@ export default function Earn() {
     <div>
       <div className="page-header">
         <h1>Start Earning</h1>
-        <p>Multiple revenue streams — affiliates, subscriptions, ads, API sales</p>
+        <p>Multiple revenue streams — affiliates, subscriptions, ads, Telegram bot</p>
       </div>
 
       {/* Revenue Overview */}
@@ -192,7 +203,7 @@ export default function Earn() {
       <div className="card" style={{ marginBottom: 24 }}>
         <div className="card-header">
           <h2 className="card-title"><FiStar style={{ marginRight: 8 }} />Stream 2: Premium Subscriptions</h2>
-          <span className="badge badge-orange">₹299-₹799/month per user</span>
+          <span className="badge badge-orange">₹199-₹999/month per user</span>
         </div>
 
         <div className="form-group" style={{ maxWidth: 400, marginBottom: 20 }}>
@@ -211,7 +222,7 @@ export default function Earn() {
           </div>
         )}
 
-        <div className="grid-3">
+        <div className="grid-4">
           {SUBSCRIPTION_PLANS.map((plan) => (
             <div
               key={plan.name}
@@ -268,15 +279,15 @@ export default function Earn() {
         <div className="grid-3">
           <div className="stat-card">
             <div className="stat-value" style={{ fontSize: 16, color: "var(--green)" }}>Free</div>
-            <div className="stat-label">/predict /news /form</div>
+            <div className="stat-label">/form /news /teams</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value" style={{ fontSize: 16, color: "var(--accent)" }}>₹299 Pro</div>
-            <div className="stat-label">/dream11 /agents /live</div>
+            <div className="stat-value" style={{ fontSize: 16, color: "var(--accent)" }}>₹199 Pro</div>
+            <div className="stat-label">/predict /dream11 /agents</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value" style={{ fontSize: 16, color: "var(--purple)" }}>₹799 Elite</div>
-            <div className="stat-label">Alerts + Priority</div>
+            <div className="stat-value" style={{ fontSize: 16, color: "var(--purple)" }}>₹499 Elite</div>
+            <div className="stat-label">Post-toss + 1st innings</div>
           </div>
         </div>
         <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
@@ -306,16 +317,16 @@ export default function Earn() {
         </div>
 
         <div className="card">
-          <h3 className="card-title">Stream 5: API-as-a-Service</h3>
+          <h3 className="card-title">Stream 5: Telegram Bot Growth</h3>
           <p style={{ color: "var(--text-secondary)", fontSize: 14, marginBottom: 12 }}>
-            Sell API access to developers, betting analytics companies, and fantasy apps.
+            Share your bot in WhatsApp cricket groups, Instagram stories, and Twitter during IPL season.
           </p>
           <div className="stat-card" style={{ marginBottom: 12 }}>
-            <div className="stat-value" style={{ fontSize: 18, color: "var(--accent)" }}>₹1,999/mo</div>
-            <div className="stat-label">Per API customer</div>
+            <div className="stat-value" style={{ fontSize: 18, color: "var(--accent)" }}>₹199-₹999</div>
+            <div className="stat-label">Per subscriber/month</div>
           </div>
           <p style={{ fontSize: 12, color: "var(--text-muted)" }}>
-            API docs at: {API_BASE}/docs
+            100 Pro users = ₹19,900/month | 20 Ultra Premium = ₹19,980/month
           </p>
         </div>
       </div>

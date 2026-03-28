@@ -8,7 +8,6 @@ const PLAN_ICONS = {
   pro: <FiStar size={28} />,
   elite: <FiAward size={28} />,
   ultra_premium: <FiAward size={28} />,
-  api: <FiZap size={28} />,
 };
 
 const PLAN_COLORS = {
@@ -16,7 +15,6 @@ const PLAN_COLORS = {
   pro: "var(--accent)",
   elite: "var(--purple)",
   ultra_premium: "var(--green)",
-  api: "var(--cyan)",
 };
 
 export default function Pricing() {
@@ -162,7 +160,7 @@ export default function Pricing() {
         </p>
         <div className="grid-4" style={{ marginTop: 20 }}>
           <div className="stat-card">
-            <div className="stat-value" style={{ fontSize: 20, color: "var(--accent)" }}>₹299-₹1999</div>
+            <div className="stat-value" style={{ fontSize: 20, color: "var(--accent)" }}>₹199-₹999</div>
             <div className="stat-label">Subscriptions</div>
           </div>
           <div className="stat-card">

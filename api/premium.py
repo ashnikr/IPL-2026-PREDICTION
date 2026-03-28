@@ -43,8 +43,8 @@ PLANS = {
     },
     "pro": {
         "name": "Pro",
-        "price_inr": 299,
-        "price_usd": 3.99,
+        "price_inr": 199,
+        "price_usd": 2.49,
         "predictions_per_day": 100,
         "features": [
             "Unlimited predictions",
@@ -64,8 +64,8 @@ PLANS = {
     },
     "elite": {
         "name": "Elite",
-        "price_inr": 799,
-        "price_usd": 9.99,
+        "price_inr": 499,
+        "price_usd": 5.99,
         "predictions_per_day": -1,  # unlimited
         "features": [
             "Everything in Pro",
@@ -85,8 +85,8 @@ PLANS = {
     },
     "ultra_premium": {
         "name": "Ultra Premium",
-        "price_inr": 1499,
-        "price_usd": 17.99,
+        "price_inr": 999,
+        "price_usd": 11.99,
         "predictions_per_day": -1,
         "features": [
             "Everything in Elite",
@@ -96,26 +96,6 @@ PLANS = {
             "Post-toss instant predictions",
             "RL-corrected model weights",
             "Priority support",
-        ],
-        "agents": True,
-        "dream11": True,
-        "live": True,
-        "news": True,
-        "api_access": True,
-        "telegram_alerts": True,
-        "live_bbb": True,
-    },
-    "api": {
-        "name": "API Developer",
-        "price_inr": 1999,
-        "price_usd": 24.99,
-        "predictions_per_day": -1,
-        "features": [
-            "Full REST API access",
-            "Webhook notifications",
-            "Bulk predictions",
-            "Commercial usage rights",
-            "99.9% uptime SLA",
         ],
         "agents": True,
         "dream11": True,
@@ -265,15 +245,15 @@ def estimate_monthly_revenue(
     free_users: int = 1000,
     pro_users: int = 50,
     elite_users: int = 10,
-    api_users: int = 2,
+    ultra_users: int = 5,
     affiliate_clicks: int = 500,
     ad_pageviews: int = 50000,
 ):
     """Estimate monthly revenue from all streams."""
     sub_revenue = (
-        pro_users * 299 +
-        elite_users * 799 +
-        api_users * 1999
+        pro_users * 199 +
+        elite_users * 499 +
+        ultra_users * 999
     )
     affiliate_revenue = affiliate_clicks * 5  # avg ₹5 per click conversion
     ad_revenue = (ad_pageviews / 1000) * 15  # ₹15 CPM average
@@ -285,9 +265,9 @@ def estimate_monthly_revenue(
         "total_monthly_inr": round(sub_revenue + affiliate_revenue + ad_revenue),
         "total_monthly_usd": round((sub_revenue + affiliate_revenue + ad_revenue) / 83, 2),
         "breakdown": {
-            f"Pro ({pro_users} users × ₹299)": pro_users * 299,
-            f"Elite ({elite_users} users × ₹799)": elite_users * 799,
-            f"API ({api_users} users × ₹1999)": api_users * 1999,
+            f"Pro ({pro_users} users × ₹199)": pro_users * 199,
+            f"Elite ({elite_users} users × ₹499)": elite_users * 499,
+            f"Ultra Premium ({ultra_users} users × ₹999)": ultra_users * 999,
             f"Affiliates ({affiliate_clicks} clicks)": affiliate_clicks * 5,
             f"Ads ({ad_pageviews} pageviews)": round(ad_revenue),
         },
