@@ -127,22 +127,33 @@ class FantasyTeamGenerator:
             pass
 
     def generate_team(self, team1: str, team2: str, venue: str = "",
-                      weather: dict = None, contest_type: str = "mega") -> dict:
+                      weather: dict = None, contest_type: str = "mega",
+                      playing_xi_team1: list = None, playing_xi_team2: list = None) -> dict:
         """
         Generate optimal fantasy XI for a match.
+
+        Only picks from players who are ACTUALLY PLAYING (Playing XI).
+        If playing XI not provided, fetches likely XI from squad data.
 
         contest_type: 'mega' (safe picks), 'h2h' (high ceiling), 'small' (balanced)
         """
         logger.info(f"Generating Fantasy XI: {team1} vs {team2} ({contest_type} contest)")
 
-        # Get all eligible players
-        t1_players = self._get_team_players(team1)
-        t2_players = self._get_team_players(team2)
-        all_players = t1_players + t2_players
+        # Step 1: Get the actual Playing XI (22 players on the field)
+        t1_playing = self._get_playing_xi(team1, playing_xi_team1)
+        t2_playing = self._get_playing_xi(team2, playing_xi_team2)
+
+        logger.info(f"  {team1} Playing XI: {len(t1_playing)} players")
+        logger.info(f"  {team2} Playing XI: {len(t2_playing)} players")
+
+        # Step 2: Build fantasy data ONLY for playing players
+        all_players = []
+        for p in t1_playing + t2_playing:
+            fantasy = self._get_player_fantasy_data(p["name"], p.get("role", "ALL"), p.get("team", ""), p.get("overseas", False))
+            all_players.append(fantasy)
 
         if len(all_players) < 11:
-            logger.warning("Not enough players in database, using squad data")
-            all_players = self._fill_from_squads(team1, team2, all_players)
+            logger.warning(f"Only {len(all_players)} playing players found, need at least 11")
 
         # Score each player
         scored = []
@@ -195,43 +206,94 @@ class FantasyTeamGenerator:
 
         return result
 
-    def _get_team_players(self, team: str) -> list[dict]:
-        """Get all known players for a team."""
+    def _get_playing_xi(self, team: str, provided_xi: list = None) -> list[dict]:
+        """
+        Get the Playing XI for a team. Priority:
+        1. User-provided playing XI names
+        2. Live scraper's likely playing XI (from squad data)
+        3. Fallback to top 11 from squad
+        """
+        ROLE_MAP = {"Batsman": "BAT", "WK-Batsman": "WK", "All-rounder": "ALL", "Bowler": "BOWL"}
+
+        # Option 1: User provided specific player names
+        if provided_xi and len(provided_xi) >= 11:
+            logger.info(f"  Using user-provided Playing XI for {team}")
+            result = []
+            for name in provided_xi[:11]:
+                # Try to find role from squad data
+                role = "ALL"
+                overseas = False
+                try:
+                    from scrapers.live_data_scraper import LiveDataScraper
+                    squads = LiveDataScraper().get_team_squads()
+                    for p in squads.get(team, {}).get("players", []):
+                        if p["name"].lower() == name.lower():
+                            role = ROLE_MAP.get(p.get("role", ""), "ALL")
+                            overseas = p.get("overseas", False)
+                            name = p["name"]  # use exact name from squad
+                            break
+                except Exception:
+                    pass
+                result.append({"name": name, "role": role, "team": team, "overseas": overseas})
+            return result
+
+        # Option 2: Get likely Playing XI from scraper
+        try:
+            from scrapers.live_data_scraper import LiveDataScraper
+            scraper = LiveDataScraper()
+            xi = scraper.get_team_playing_xi(team)
+            if xi and len(xi) >= 11:
+                logger.info(f"  Using scraper Playing XI for {team}: {[p['name'] for p in xi]}")
+                return [
+                    {"name": p["name"], "role": ROLE_MAP.get(p.get("role", ""), "ALL"),
+                     "team": team, "overseas": p.get("overseas", False)}
+                    for p in xi[:11]
+                ]
+        except Exception as e:
+            logger.warning(f"  Could not get playing XI from scraper for {team}: {e}")
+
+        # Option 3: Fallback — get from our fantasy database
+        logger.warning(f"  Falling back to fantasy database for {team}")
         return [
             {**data, "name": name}
             for name, data in self.PLAYER_FANTASY_DATA.items()
             if data["team"] == team
-        ]
+        ][:11]
 
-    def _fill_from_squads(self, team1: str, team2: str, existing: list) -> list:
-        """Fill missing players from squad data."""
-        try:
-            from scrapers.live_data_scraper import LiveDataScraper
-            scraper = LiveDataScraper()
-            squads = scraper.get_team_squads()
+    def _get_player_fantasy_data(self, name: str, role: str, team: str, overseas: bool = False) -> dict:
+        """
+        Get fantasy data for a specific player.
+        If player exists in our database, use those ratings.
+        Otherwise, generate default ratings based on role.
+        """
+        # Check if player is in our rated database
+        if name in self.PLAYER_FANTASY_DATA:
+            data = self.PLAYER_FANTASY_DATA[name]
+            return {**data, "name": name}
 
-            existing_names = {p["name"] for p in existing}
+        # Player not in database — generate reasonable defaults by role
+        role_defaults = {
+            "WK":   {"credit": 8.0, "avg_pts": 28, "ceiling": 85, "floor": 5},
+            "BAT":  {"credit": 7.5, "avg_pts": 25, "ceiling": 80, "floor": 3},
+            "ALL":  {"credit": 8.0, "avg_pts": 30, "ceiling": 90, "floor": 8},
+            "BOWL": {"credit": 7.5, "avg_pts": 25, "ceiling": 75, "floor": 5},
+        }
+        defaults = role_defaults.get(role, role_defaults["ALL"])
 
-            for team in [team1, team2]:
-                squad = squads.get(team, {}).get("players", [])
-                for player in squad:
-                    if player["name"] not in existing_names:
-                        role_map = {
-                            "Batsman": "BAT", "WK-Batsman": "WK",
-                            "All-rounder": "ALL", "Bowler": "BOWL",
-                        }
-                        existing.append({
-                            "name": player["name"],
-                            "role": role_map.get(player.get("role", ""), "ALL"),
-                            "credit": 7.5 if player.get("overseas") else 7.0,
-                            "avg_pts": 20,
-                            "ceiling": 60,
-                            "floor": 2,
-                            "team": team,
-                        })
-        except Exception:
-            pass
-        return existing
+        # Overseas players tend to have slightly higher credits
+        if overseas:
+            defaults["credit"] = min(defaults["credit"] + 0.5, 9.0)
+            defaults["avg_pts"] += 3
+            defaults["ceiling"] += 10
+
+        logger.info(f"  New player (not in DB): {name} ({role}) — using default ratings")
+        return {
+            "name": name,
+            "role": role,
+            "team": team,
+            "overseas": overseas,
+            **defaults,
+        }
 
     def _calculate_fantasy_score(self, player: dict, venue: str,
                                   weather: dict, contest_type: str) -> float:

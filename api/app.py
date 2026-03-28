@@ -269,14 +269,21 @@ class Dream11Request(BaseModel):
     team1: str = Field(..., example="Royal Challengers Bengaluru")
     team2: str = Field(..., example="Sunrisers Hyderabad")
     contest_type: str = Field(default="mega", example="mega")
+    playing_xi_team1: Optional[list[str]] = None
+    playing_xi_team2: Optional[list[str]] = None
 
 
 @app.post("/dream11")
 def dream11_team(req: Dream11Request):
-    """Generate Dream11 Fantasy XI with Captain & Vice-Captain picks."""
+    """Generate Dream11 Fantasy XI — only picks from actual Playing XI."""
     from models.fantasy_team import FantasyTeamGenerator
     gen = FantasyTeamGenerator()
-    result = gen.generate_team(req.team1, req.team2, contest_type=req.contest_type)
+    result = gen.generate_team(
+        req.team1, req.team2,
+        contest_type=req.contest_type,
+        playing_xi_team1=req.playing_xi_team1,
+        playing_xi_team2=req.playing_xi_team2,
+    )
     return result
 
 

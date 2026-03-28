@@ -23,8 +23,11 @@ import sys
 import asyncio
 import logging
 import requests
+from pathlib import Path
+from dotenv import load_dotenv
 
 sys.path.insert(0, ".")
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("IPLBot")
