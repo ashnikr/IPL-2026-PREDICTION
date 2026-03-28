@@ -34,6 +34,95 @@ logger = logging.getLogger("IPLBot")
 
 API_BASE = os.getenv("API_URL", "https://ipl-2026-prediction-pxdp.onrender.com")
 BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+ADMIN_CHAT_ID = os.getenv("ADMIN_CHAT_ID", "")  # Your Telegram chat ID
+
+# ── Premium User Management ─────────────────────────────────────────
+import json
+
+PREMIUM_FILE = Path(__file__).resolve().parent.parent / "data" / "premium" / "telegram_users.json"
+PREMIUM_FILE.parent.mkdir(parents=True, exist_ok=True)
+
+FREE_DAILY_LIMIT = 0  # Free users get ZERO predictions — must pay
+PREMIUM_COMMANDS = {"/predict", "/dream11", "/fantasy", "/live", "/agents"}  # ALL locked
+
+def _load_premium_users():
+    if PREMIUM_FILE.exists():
+        return json.loads(PREMIUM_FILE.read_text())
+    return {}
+
+def _save_premium_users(data):
+    PREMIUM_FILE.write_text(json.dumps(data, indent=2))
+
+def is_premium(chat_id: str) -> bool:
+    """Check if user has paid subscription."""
+    users = _load_premium_users()
+    user = users.get(str(chat_id), {})
+    return user.get("plan", "free") in ("pro", "elite")
+
+def get_user_plan(chat_id: str) -> str:
+    users = _load_premium_users()
+    return users.get(str(chat_id), {}).get("plan", "free")
+
+def check_free_limit(chat_id: str) -> bool:
+    """Check if free user has remaining daily predictions."""
+    from datetime import date
+    users = _load_premium_users()
+    user = users.get(str(chat_id), {"usage": {}, "plan": "free"})
+    if user.get("plan") in ("pro", "elite"):
+        return True  # no limit for paid
+    today = date.today().isoformat()
+    daily_usage = user.get("usage", {}).get(today, 0)
+    return daily_usage < FREE_DAILY_LIMIT
+
+def track_free_usage(chat_id: str):
+    """Increment daily usage for free user."""
+    from datetime import date
+    users = _load_premium_users()
+    cid = str(chat_id)
+    if cid not in users:
+        users[cid] = {"plan": "free", "usage": {}}
+    today = date.today().isoformat()
+    if "usage" not in users[cid]:
+        users[cid]["usage"] = {}
+    users[cid]["usage"][today] = users[cid]["usage"].get(today, 0) + 1
+    _save_premium_users(users)
+
+def activate_premium(chat_id: str, plan: str = "pro"):
+    """Activate premium for a user (called by admin)."""
+    users = _load_premium_users()
+    cid = str(chat_id)
+    if cid not in users:
+        users[cid] = {"usage": {}}
+    users[cid]["plan"] = plan
+    users[cid]["activated"] = __import__("datetime").datetime.now().isoformat()
+    _save_premium_users(users)
+    return True
+
+PAYWALL_MSG = """🔒 *This is a PRO feature!*
+
+You need a *Pro* or *Elite* subscription to access this.
+
+⭐ *PRO — ₹299/month*
+✅ Dream11 Fantasy XI
+✅ Live mid-match predictor
+✅ 10 AI Agents + LLM
+
+💎 *ELITE — ₹799/month*
+✅ Everything in Pro + Alerts
+
+💳 *How to pay:*
+1. Pay ₹299 via UPI
+2. Send screenshot to @ashnikr
+3. Get instant access!
+
+/subscribe for details"""
+
+FREE_LIMIT_MSG = """⚠️ *Daily limit reached!*
+
+Free plan: {used}/{limit} predictions used today.
+
+Upgrade to *Pro* for unlimited predictions!
+/subscribe to upgrade."""
 
 # Team name shortcuts
 TEAM_SHORTCUTS = {
@@ -78,22 +167,25 @@ def handle_start():
 ━━━━━━━━━━━━━━━━━━━━━━
 
 🤖 10 AI Agents + 8 ML Models + LLM Analysis
+🎯 85%+ Accuracy | Auto Playing XI
 
 *FREE Commands:*
-/predict CSK MI — Match prediction
 /form — Team form & momentum
 /news — Latest cricket news
 /teams — All IPL teams
+/subscribe — View plans
 
-*PRO Commands (₹299/month):*
+🔒 *PAID Features (₹299/month):*
+/predict CSK MI — AI Match Prediction
 /dream11 CSK MI — Dream11 Fantasy XI
-/live CSK MI 185 4 — Live mid-match
+/live CSK MI 185 4 — Live Mid-Match
 /agents CSK MI — 10 AI Agents + LLM
 
-/subscribe — Upgrade to Pro
-/my\\_plan — Check your plan
+💳 *Pay ₹299 via UPI → Get instant access!*
+Contact @ashnikr to subscribe
 
-Powered by Groq Llama 3.3 70B 🚀"""
+/subscribe — Plans & payment info
+/my\\_plan — Check your plan"""
 
 
 def handle_predict(args: list):
@@ -328,7 +420,7 @@ Use shortcuts in commands:
 
 # ── Main Bot Loop (polling) ──────────────────────────────────────────
 
-def process_message(text: str) -> str:
+def process_message(text: str, chat_id: str = "") -> str:
     """Process incoming message and return response."""
     if not text:
         return handle_start()
@@ -337,29 +429,65 @@ def process_message(text: str) -> str:
     cmd = parts[0].lower().split("@")[0]  # handle @botname suffix
     args = parts[1:]
 
-    handlers = {
+    # Admin commands (only you can use these)
+    if cmd == "/activate" and str(chat_id) == str(ADMIN_CHAT_ID):
+        # /activate 123456789 pro
+        if len(args) >= 1:
+            target_id = args[0]
+            plan = args[1] if len(args) > 1 else "pro"
+            activate_premium(target_id, plan)
+            return f"✅ Activated *{plan}* plan for user `{target_id}`"
+        return "Usage: /activate <chat_id> <pro|elite>"
+
+    if cmd == "/users" and str(chat_id) == str(ADMIN_CHAT_ID):
+        users = _load_premium_users()
+        paid = {k: v for k, v in users.items() if v.get("plan") in ("pro", "elite")}
+        return f"Total users: {len(users)}\nPaid users: {len(paid)}\n\n" + "\n".join(
+            f"  `{k}` — {v.get('plan', 'free')}" for k, v in paid.items()
+        ) if paid else f"Total users: {len(users)}\nNo paid users yet."
+
+    # Free commands (no payment needed)
+    free_handlers = {
         "/start": lambda: handle_start(),
         "/help": lambda: handle_start(),
+        "/subscribe": lambda: handle_subscribe(),
+        "/upgrade": lambda: handle_subscribe(),
+        "/teams": lambda: handle_teams(),
+        "/my_plan": lambda: f"Your plan: *{get_user_plan(chat_id).upper()}*\n\n" + (
+            "✅ You have full access to all features!" if is_premium(chat_id)
+            else "🔒 You're on FREE plan. No predictions available.\n\n/subscribe to unlock everything!"
+        ),
+        "/form": lambda: handle_form(),
+        "/news": lambda: handle_news(),
+    }
+
+    if cmd in free_handlers:
+        try:
+            return free_handlers[cmd]()
+        except Exception as e:
+            logger.error(f"Error handling {cmd}: {e}")
+            return f"❌ Something went wrong: {str(e)[:100]}"
+
+    # PAID commands — check subscription
+    paid_handlers = {
         "/predict": lambda: handle_predict(args),
         "/dream11": lambda: handle_dream11(args),
         "/fantasy": lambda: handle_dream11(args),
         "/live": lambda: handle_live(args),
         "/agents": lambda: handle_agents(args),
-        "/form": lambda: handle_form(),
-        "/news": lambda: handle_news(),
-        "/subscribe": lambda: handle_subscribe(),
-        "/upgrade": lambda: handle_subscribe(),
-        "/teams": lambda: handle_teams(),
-        "/my_plan": lambda: "You're on the FREE plan. /subscribe to upgrade!",
     }
 
-    handler = handlers.get(cmd)
-    if handler:
+    if cmd in paid_handlers:
+        if not is_premium(chat_id):
+            # Show teaser but lock the actual result
+            track_free_usage(chat_id)
+            return PAYWALL_MSG
         try:
-            return handler()
+            track_free_usage(chat_id)
+            return paid_handlers[cmd]()
         except Exception as e:
             logger.error(f"Error handling {cmd}: {e}")
-            return f"❌ Something went wrong. Try again.\nError: {str(e)[:100]}"
+            return f"❌ Something went wrong: {str(e)[:100]}"
 
     return "Unknown command. Type /start to see all commands."
 
@@ -398,7 +526,7 @@ async def run_polling():
                 text = msg.get("text", "")
 
                 if chat_id and text:
-                    reply = process_message(text)
+                    reply = process_message(text, chat_id=str(chat_id))
                     requests.post(f"{base}/sendMessage", json={
                         "chat_id": chat_id,
                         "text": reply,

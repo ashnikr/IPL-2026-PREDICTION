@@ -41,7 +41,8 @@ const sections = [
   {
     title: "Monetize",
     links: [
-      { to: "/pricing", icon: <FiDollarSign />, label: "Plans & Pricing" },
+      { to: "/earn", icon: <FiDollarSign />, label: "Earn Money" },
+      { to: "/pricing", icon: <FiStar />, label: "Plans & Pricing" },
     ],
   },
 ];

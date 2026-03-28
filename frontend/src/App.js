@@ -15,6 +15,7 @@ import Schedule from "./pages/Schedule";
 import Squads from "./pages/Squads";
 import Accuracy from "./pages/Accuracy";
 import Pricing from "./pages/Pricing";
+import Earn from "./pages/Earn";
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -41,6 +42,7 @@ function App() {
             <Route path="/squads" element={<Squads />} />
             <Route path="/accuracy" element={<Accuracy />} />
             <Route path="/pricing" element={<Pricing />} />
+            <Route path="/earn" element={<Earn />} />
           </Routes>
         </main>
       </div>
