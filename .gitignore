@@ -27,6 +27,14 @@ models/checkpoints/
 Thumbs.db
 desktop.ini
 
+# React frontend
+frontend/node_modules/
+frontend/build/
+frontend/.env.local
+
+# Premium data
+data/premium/
+
 # Temp
 *.tmp
 *.bak

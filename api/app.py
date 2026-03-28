@@ -424,6 +424,65 @@ def get_accuracy():
     return PredictionCalibrator().get_calibration_report()
 
 
+# ── Premium & Monetization ───────────────────────────────────────────
+
+class RegisterRequest(BaseModel):
+    email: str
+    name: str = ""
+
+
+class UpgradeRequest(BaseModel):
+    email: str
+    plan: str = Field(..., example="pro")
+    payment_id: str = ""
+
+
+@app.get("/plans")
+def get_plans():
+    """Get all subscription plans and pricing."""
+    from api.premium import PLANS
+    return {"plans": PLANS}
+
+
+@app.post("/register")
+def register(req: RegisterRequest):
+    """Register a new free user."""
+    from api.premium import register_user
+    user = register_user(req.email, req.name)
+    return {"status": "registered", "user": user}
+
+
+@app.post("/upgrade")
+def upgrade(req: UpgradeRequest):
+    """Upgrade user to a paid plan."""
+    from api.premium import upgrade_user, PLANS
+    if req.plan not in PLANS:
+        raise HTTPException(400, f"Invalid plan. Choose from: {list(PLANS.keys())}")
+    user = upgrade_user(req.email, req.plan, req.payment_id)
+    return {"status": "upgraded", "user": user}
+
+
+@app.get("/affiliates")
+def get_affiliates():
+    """Get fantasy cricket affiliate links."""
+    from api.premium import AFFILIATE_LINKS, get_affiliate_banner
+    return {"platforms": AFFILIATE_LINKS}
+
+
+@app.get("/affiliates/{team1}/{team2}")
+def get_match_affiliates(team1: str, team2: str):
+    """Get contextual affiliate recommendations for a match."""
+    from api.premium import get_affiliate_banner
+    return get_affiliate_banner(team1, team2)
+
+
+@app.get("/revenue_estimate")
+def revenue_estimate():
+    """Estimate monthly revenue from all streams."""
+    from api.premium import estimate_monthly_revenue
+    return estimate_monthly_revenue()
+
+
 # ── Run ──────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
