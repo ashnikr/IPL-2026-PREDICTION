@@ -1,0 +1,44 @@
+[
+  {
+    "date": "2026-03-28",
+    "timestamp": "2026-03-28T12:27:46.375343",
+    "team1": "Royal Challengers Bengaluru",
+    "team2": "Sunrisers Hyderabad",
+    "predicted_winner": "Sunrisers Hyderabad",
+    "team1_win_prob": 0.4891,
+    "team2_win_prob": 0.5109,
+    "confidence": 0.656,
+    "model_predictions": {
+      "catboost": 0.3544,
+      "lightgbm": 0.2271,
+      "logistic_regression": 0.9935,
+      "random_forest": 0.4226,
+      "xgboost": 0.2095,
+      "bayesian": 0.5172,
+      "monte_carlo": 0.5333
+    },
+    "actual_winner": null,
+    "correct": null
+  },
+  {
+    "date": "2026-03-28",
+    "timestamp": "2026-03-28T12:41:48.939190",
+    "team1": "Royal Challengers Bengaluru",
+    "team2": "Sunrisers Hyderabad",
+    "predicted_winner": "Sunrisers Hyderabad",
+    "team1_win_prob": 0.4469,
+    "team2_win_prob": 0.5531,
+    "confidence": 0.656,
+    "model_predictions": {
+      "catboost": 0.3544,
+      "lightgbm": 0.2271,
+      "logistic_regression": 0.9935,
+      "random_forest": 0.4226,
+      "xgboost": 0.2095,
+      "bayesian": 0.5172,
+      "monte_carlo": 0.5395
+    },
+    "actual_winner": null,
+    "correct": null
+  }
+]

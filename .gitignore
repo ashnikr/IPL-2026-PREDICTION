@@ -1,0 +1,32 @@
+# Environment
+.env
+.venv/
+venv/
+env/
+__pycache__/
+*.pyc
+*.pyo
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Data caches (regenerated at runtime)
+data/cache/
+data/predictions/
+data/rag/
+logs/
+
+# Model checkpoints (large files)
+models/checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temp
+*.tmp
+*.bak

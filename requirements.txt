@@ -1,0 +1,67 @@
+# Core
+python-dotenv==1.1.0
+pydantic==2.11.1
+pydantic-settings==2.9.1
+
+# Data
+pandas==2.2.3
+numpy==1.26.4
+scikit-learn==1.6.1
+scipy==1.15.2
+
+# ML Models
+xgboost==2.1.4
+lightgbm==4.6.0
+catboost==1.2.7
+tensorflow==2.19.0
+
+# Bayesian & Simulation
+pymc==5.22.0
+arviz==0.21.0
+
+# Web Scraping
+requests==2.32.3
+beautifulsoup4==4.13.3
+httpx==0.28.1
+lxml==5.3.1
+selenium==4.28.1
+
+# Database
+sqlalchemy==2.0.38
+psycopg2-binary==2.9.10
+alembic==1.14.1
+redis==5.2.1
+
+# API
+fastapi==0.115.12
+uvicorn==0.34.0
+
+# Dashboard
+streamlit==1.43.2
+plotly==6.0.1
+
+# Orchestration
+prefect==3.2.14
+
+# AI/Agents
+langchain==0.3.20
+langchain-community==0.3.19
+langchain-openai==0.3.11
+langgraph==0.3.21
+chromadb==0.6.3
+
+# Explainability
+shap==0.46.0
+
+# Weather
+python-weather==2.1.0
+
+# Scheduling
+apscheduler==3.11.0
+
+# Logging
+loguru==0.7.3
+
+# Visualization
+matplotlib==3.10.1
+seaborn==0.13.2
