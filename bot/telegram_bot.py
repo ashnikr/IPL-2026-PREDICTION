@@ -377,7 +377,33 @@ def handle_subscribe():
 After payment → send screenshot here → instant access!"""
 
 
+# ── Pending Payments Tracker ──────────────────────────────────────
+PENDING_PAYMENTS_FILE = Path(__file__).resolve().parent.parent / "data" / "premium" / "pending_payments.json"
+
+def _load_pending_payments():
+    if PENDING_PAYMENTS_FILE.exists():
+        return json.loads(PENDING_PAYMENTS_FILE.read_text())
+    return {}
+
+def _save_pending_payments(data):
+    PENDING_PAYMENTS_FILE.write_text(json.dumps(data, indent=2))
+
+def _set_pending_payment(chat_id, plan, amount):
+    pending = _load_pending_payments()
+    pending[str(chat_id)] = {
+        "plan": plan,
+        "amount": amount,
+        "timestamp": __import__("datetime").datetime.now().isoformat(),
+    }
+    _save_pending_payments(pending)
+
+def _get_pending_payment(chat_id):
+    pending = _load_pending_payments()
+    return pending.get(str(chat_id), {})
+
+
 def handle_pay(args, chat_id):
+    """Send UPI QR code as image + inline pay button + track plan selection."""
     plans_info = {
         "pro": {"amount": 199, "name": "Pro"},
         "elite": {"amount": 499, "name": "Elite"},
@@ -393,50 +419,182 @@ def handle_pay(args, chat_id):
 
     amount = plan["amount"]
     name = plan["name"]
+    plan_key = args[0].lower()
+    if plan_key == "ultra":
+        plan_key = "ultra_premium"
     note = f"IPL2026-{name}-{chat_id}"
     upi = _upi_link(amount, note)
 
-    return f"""💳 *Pay for {name} Plan*
+    # Track which plan this user wants to pay for
+    _set_pending_payment(chat_id, plan_key, amount)
+
+    base = f"https://api.telegram.org/bot{BOT_TOKEN}"
+
+    # Step 1: Send QR code as actual image
+    qr_url = f"https://api.qrserver.com/v1/create-qr-code/?size=400x400&data={requests.utils.quote(upi)}"
+    try:
+        requests.post(f"{base}/sendPhoto", json={
+            "chat_id": chat_id,
+            "photo": qr_url,
+            "caption": f"📱 *Scan QR to Pay ₹{amount}*\nPlan: {name}\nUPI: `{UPI_ID}`",
+            "parse_mode": "Markdown",
+        }, timeout=15)
+    except Exception as e:
+        logger.warning(f"QR send failed: {e}")
+
+    # Step 2: Send payment instructions with UPI button
+    text = f"""💳 *Pay for {name} Plan — ₹{amount}*
 ━━━━━━━━━━━━━━━━━━━━━━
 
-💰 Amount: *₹{amount}*
-📱 UPI ID: `{UPI_ID}`
+*Step 1:* Pay using any of these methods:
 
-*Click to Pay:*
-[Pay ₹{amount} via UPI]({upi})
+📱 *UPI ID:* `{UPI_ID}`
+💰 *Amount:* ₹{amount}
+📝 *Note:* `{note}`
 
-*Or Manual:*
-1. Open GPay/PhonePe/Paytm
-2. Send ₹{amount} to: `{UPI_ID}`
-3. Note: `{note}`
+👆 Tap the UPI ID above to copy it
 
-*QR Code:*
-`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data={upi}`
+*How to pay:*
+1️⃣ Open GPay / PhonePe / Paytm
+2️⃣ Go to "Pay to UPI ID"
+3️⃣ Paste: `{UPI_ID}`
+4️⃣ Enter ₹{amount}
+5️⃣ In remarks/note write: `{note}`
+6️⃣ Complete payment
+
+*Step 2:* After payment done 👇
+📸 *Send payment screenshot here*
 
 ━━━━━━━━━━━━━━━━━━━━━━
-✅ After payment → send screenshot here
-Your *{name}* plan activates instantly!"""
+✅ Screenshot → Instant verification → Plan activated!"""
+
+    # Send with inline keyboard: UPI deep link button + copy button
+    try:
+        requests.post(f"{base}/sendMessage", json={
+            "chat_id": chat_id,
+            "text": text,
+            "parse_mode": "Markdown",
+            "reply_markup": {
+                "inline_keyboard": [
+                    [{"text": f"💳 Pay ₹{amount} via UPI App", "url": upi}],
+                    [{"text": "📋 Copy UPI ID", "callback_data": "copy_upi"}],
+                ]
+            }
+        }, timeout=15)
+    except Exception as e:
+        logger.warning(f"Pay message send failed: {e}")
+
+    # Return None so the main loop doesn't send duplicate
+    return None
 
 
 def handle_payment_screenshot(chat_id):
+    """User sent screenshot → forward to admin with plan info + quick activate buttons."""
     admin_id = os.getenv("ADMIN_CHAT_ID", "")
+    pending = _get_pending_payment(chat_id)
+    plan_name = pending.get("plan", "unknown")
+    amount = pending.get("amount", "?")
+
+    base = f"https://api.telegram.org/bot{BOT_TOKEN}"
+
     if admin_id:
-        base = f"https://api.telegram.org/bot{BOT_TOKEN}"
         try:
+            # Send alert to admin with plan details and quick activate buttons
             requests.post(f"{base}/sendMessage", json={
                 "chat_id": admin_id,
-                "text": f"💰 *Payment Screenshot!*\nFrom: `{chat_id}`\nPlan: {get_user_plan(chat_id)}\n\n/activate {chat_id} pro\n/activate {chat_id} elite\n/activate {chat_id} ultra\\_premium",
+                "text": (
+                    f"💰 *NEW PAYMENT SCREENSHOT!*\n"
+                    f"━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"👤 User: `{chat_id}`\n"
+                    f"📋 Plan requested: *{plan_name.upper()}*\n"
+                    f"💰 Amount: *₹{amount}*\n"
+                    f"⏰ Time: {__import__('datetime').datetime.now().strftime('%I:%M %p')}\n\n"
+                    f"*Quick Activate:*\n"
+                    f"/activate {chat_id} {plan_name}\n\n"
+                    f"_Screenshot forwarded below 👇_"
+                ),
+                "parse_mode": "Markdown",
+                "reply_markup": {
+                    "inline_keyboard": [
+                        [
+                            {"text": f"✅ Activate {plan_name.upper()}", "callback_data": f"activate_{chat_id}_{plan_name}"},
+                            {"text": "❌ Reject", "callback_data": f"reject_{chat_id}"},
+                        ]
+                    ]
+                }
+            }, timeout=10)
+        except Exception as e:
+            logger.warning(f"Admin notification failed: {e}")
+
+    plan_display = plan_name.replace("_", " ").title() if plan_name != "unknown" else "Selected"
+    return f"""📸 *Payment Screenshot Received!*
+━━━━━━━━━━━━━━━━━━━━━━
+
+✅ Your ₹{amount} payment for *{plan_display}* plan is being verified.
+
+⏳ Your plan will be activated within *2-5 minutes*.
+📱 You'll receive a confirmation message here.
+
+Your Chat ID: `{chat_id}`
+
+_If not activated in 10 minutes, contact @Nikhil2026_"""
+
+
+def handle_callback_query(callback_data, from_chat_id):
+    """Handle inline keyboard button presses."""
+    base = f"https://api.telegram.org/bot{BOT_TOKEN}"
+
+    if callback_data == "copy_upi":
+        return f"📋 UPI ID: `{UPI_ID}`\n\nTap to copy 👆"
+
+    if callback_data.startswith("activate_") and str(from_chat_id) == str(ADMIN_CHAT_ID):
+        parts = callback_data.split("_", 2)
+        if len(parts) >= 3:
+            target_id = parts[1]
+            plan = parts[2]
+            activate_premium(target_id, plan)
+
+            # Notify the user their plan is activated
+            plan_display = plan.replace("_", " ").title()
+            try:
+                requests.post(f"{base}/sendMessage", json={
+                    "chat_id": target_id,
+                    "text": (
+                        f"🎉 *PLAN ACTIVATED!*\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━\n\n"
+                        f"✅ Your *{plan_display}* plan is now active!\n\n"
+                        f"🏏 You can now use:\n"
+                        f"  /predict CSK MI — Pre-match prediction\n"
+                        f"  /innings CSK MI 185 4 — After 1st innings\n"
+                        f"  /dream11 CSK MI — Dream11 Fantasy XI\n\n"
+                        f"Enjoy your predictions! 🚀"
+                    ),
+                    "parse_mode": "Markdown",
+                }, timeout=10)
+            except Exception:
+                pass
+
+            return f"✅ Activated *{plan_display}* for `{target_id}`\nUser has been notified!"
+
+    if callback_data.startswith("reject_") and str(from_chat_id) == str(ADMIN_CHAT_ID):
+        target_id = callback_data.split("_", 1)[1]
+        try:
+            requests.post(f"{base}/sendMessage", json={
+                "chat_id": target_id,
+                "text": (
+                    "❌ *Payment could not be verified.*\n\n"
+                    "Please ensure you paid to the correct UPI ID:\n"
+                    f"`{UPI_ID}`\n\n"
+                    "Try again: /pay pro or /pay elite or /pay ultra\n"
+                    "Issue? Contact @Nikhil2026"
+                ),
                 "parse_mode": "Markdown",
             }, timeout=10)
         except Exception:
             pass
+        return "❌ Payment rejected. User notified."
 
-    return f"""📸 *Payment Received!*
-
-✅ Being verified now.
-⏳ Activated within 5-10 minutes.
-
-Your Chat ID: `{chat_id}`"""
+    return None
 
 
 def handle_rl_status():
@@ -451,6 +609,44 @@ Matches: {r['total_matches']} | Correct: {r['correct_predictions']}
 Accuracy: {r['overall_accuracy']:.1%} | Trend: {r['improvement_trend']}"""
     except Exception as e:
         return f"❌ {str(e)[:100]}"
+
+
+def handle_result(args):
+    """Admin command: /result RCB CSK RCB  →  process match result through RL."""
+    if len(args) < 3:
+        return """Usage: /result TEAM1 TEAM2 WINNER
+
+Example: /result RCB CSK RCB
+(RCB vs CSK, RCB won)
+
+This triggers RL auto-training immediately."""
+
+    team1 = resolve_team(args[0])
+    team2 = resolve_team(args[1])
+    winner = resolve_team(args[2])
+
+    try:
+        from scheduler import manual_process_result
+        result = manual_process_result(team1, team2, winner)
+        correct = result.get("correct", False)
+        reward = result.get("reward", 0)
+        accuracy = result.get("rolling_accuracy", 0)
+        corrected = result.get("models_corrected", [])
+
+        return f"""🔄 *RL Training Complete*
+━━━━━━━━━━━━━━━━━━━━━━
+*{team1} vs {team2}*
+Winner: *{winner}*
+
+{'✅ Prediction was CORRECT' if correct else '❌ Prediction was WRONG'}
+Reward: {reward:.2f}
+Models corrected: {', '.join(corrected) if corrected else 'None'}
+Rolling accuracy: {accuracy:.1%}
+Total matches: {result.get('total_matches', 0)}
+
+🤖 Weights updated automatically!"""
+    except Exception as e:
+        return f"❌ RL processing failed: {str(e)[:200]}"
 
 
 # ── Main Message Router ──────────────────────────────────────────────
@@ -481,6 +677,9 @@ def process_message(text, chat_id=""):
 
     if cmd == "/rl_status" and str(chat_id) == str(ADMIN_CHAT_ID):
         return handle_rl_status()
+
+    if cmd == "/result" and str(chat_id) == str(ADMIN_CHAT_ID):
+        return handle_result(args)
 
     # Payment command
     if cmd == "/pay":
@@ -547,6 +746,33 @@ async def run_polling():
 
             for update in updates:
                 offset = update["update_id"] + 1
+
+                # ── Handle inline button presses (callback queries) ──
+                callback = update.get("callback_query")
+                if callback:
+                    cb_data = callback.get("data", "")
+                    cb_chat_id = callback.get("from", {}).get("id", "")
+                    cb_id = callback.get("id", "")
+
+                    logger.info(f"Callback: {cb_data} from {cb_chat_id}")
+                    reply = handle_callback_query(cb_data, str(cb_chat_id))
+
+                    # Answer the callback to remove loading spinner
+                    try:
+                        requests.post(f"{base}/answerCallbackQuery", json={
+                            "callback_query_id": cb_id,
+                            "text": "Processing..." if reply else "Done",
+                        }, timeout=5)
+                    except Exception:
+                        pass
+
+                    if reply:
+                        requests.post(f"{base}/sendMessage", json={
+                            "chat_id": cb_chat_id, "text": reply, "parse_mode": "Markdown",
+                        }, timeout=10)
+                    continue
+
+                # ── Handle messages ──
                 msg = update.get("message", {})
                 chat_id = msg.get("chat", {}).get("id")
                 text = msg.get("text", "")
@@ -554,12 +780,14 @@ async def run_polling():
                 if not chat_id:
                     continue
 
-                # Photo = payment screenshot
+                # Photo/document = payment screenshot
                 if msg.get("photo") or msg.get("document"):
-                    logger.info(f"Photo from {chat_id}")
+                    logger.info(f"Payment screenshot from {chat_id}")
                     reply = handle_payment_screenshot(str(chat_id))
+
+                    # Forward the actual screenshot to admin
                     admin_id = os.getenv("ADMIN_CHAT_ID", "")
-                    if admin_id and msg.get("photo"):
+                    if admin_id:
                         try:
                             requests.post(f"{base}/forwardMessage", json={
                                 "chat_id": admin_id, "from_chat_id": chat_id,
@@ -567,6 +795,7 @@ async def run_polling():
                             }, timeout=10)
                         except Exception:
                             pass
+
                     requests.post(f"{base}/sendMessage", json={
                         "chat_id": chat_id, "text": reply, "parse_mode": "Markdown",
                     })
@@ -575,9 +804,12 @@ async def run_polling():
                 if text:
                     logger.info(f"[{chat_id}] {text[:50]}")
                     reply = process_message(text, chat_id=str(chat_id))
-                    requests.post(f"{base}/sendMessage", json={
-                        "chat_id": chat_id, "text": reply, "parse_mode": "Markdown",
-                    })
+
+                    # handle_pay returns None (it sends messages directly)
+                    if reply is not None:
+                        requests.post(f"{base}/sendMessage", json={
+                            "chat_id": chat_id, "text": reply, "parse_mode": "Markdown",
+                        })
 
         except Exception as e:
             logger.error(f"Poll error: {e}")

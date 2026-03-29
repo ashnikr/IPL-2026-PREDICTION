@@ -139,61 +139,165 @@ def _save_completed_ids(ids: set):
     COMPLETED_MATCHES_FILE.write_text(json.dumps(list(ids)))
 
 
-def check_completed_matches():
-    """
-    Check for newly completed matches via CricAPI.
-    If a match just completed → auto-train + RL correction.
-    """
-    logger.info("SCHEDULED: Checking for completed matches...")
+# ── Cricbuzz/ESPN Auto-Scraper (NO API KEY NEEDED) ──────────────
 
-    cricapi_key = os.getenv("CRICAPI_KEY", "")
-    if not cricapi_key:
-        logger.warning("No CRICAPI_KEY set, skipping match completion check")
-        return
+_TEAM_ALIASES = {
+    "csk": "Chennai Super Kings", "chennai": "Chennai Super Kings",
+    "mi": "Mumbai Indians", "mumbai": "Mumbai Indians",
+    "rcb": "Royal Challengers Bengaluru", "bangalore": "Royal Challengers Bengaluru",
+    "bengaluru": "Royal Challengers Bengaluru", "royal challengers": "Royal Challengers Bengaluru",
+    "kkr": "Kolkata Knight Riders", "kolkata": "Kolkata Knight Riders",
+    "srh": "Sunrisers Hyderabad", "hyderabad": "Sunrisers Hyderabad",
+    "dc": "Delhi Capitals", "delhi": "Delhi Capitals",
+    "gt": "Gujarat Titans", "gujarat": "Gujarat Titans",
+    "lsg": "Lucknow Super Giants", "lucknow": "Lucknow Super Giants",
+    "rr": "Rajasthan Royals", "rajasthan": "Rajasthan Royals",
+    "pbks": "Punjab Kings", "punjab": "Punjab Kings",
+}
+_IPL_FULL_NAMES = set(_TEAM_ALIASES.values())
 
+
+def _normalize_team(name: str) -> str:
+    lower = name.strip().lower()
+    if lower in _TEAM_ALIASES:
+        return _TEAM_ALIASES[lower]
+    for alias, full in _TEAM_ALIASES.items():
+        if alias in lower or lower in full.lower():
+            return full
+    return name
+
+
+def _is_ipl_match(team1: str, team2: str, series: str = "") -> bool:
+    if "ipl" in series.lower() or "indian premier league" in series.lower():
+        return True
+    t1 = _normalize_team(team1)
+    t2 = _normalize_team(team2)
+    return t1 in _IPL_FULL_NAMES and t2 in _IPL_FULL_NAMES
+
+
+def _scrape_completed_matches() -> list:
+    """
+    Scrape completed IPL match results from ESPN Cricinfo + Cricbuzz.
+    NO API KEY NEEDED — free public data.
+    """
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36"
+        ),
+    }
+    results = []
+
+    # Source 1: ESPNcricinfo API (most reliable, structured JSON)
     try:
         resp = requests.get(
-            "https://api.cricapi.com/v1/currentMatches",
-            params={"apikey": cricapi_key, "offset": 0},
-            timeout=15,
+            "https://hs-consumer-api.espncricinfo.com/v1/pages/matches/current?lang=en&latest=true",
+            headers=headers, timeout=15,
         )
-        if not resp.ok:
-            logger.warning(f"CricAPI returned {resp.status_code}")
-            return
+        if resp.ok:
+            data = resp.json()
+            for match in data.get("matches", []):
+                if match.get("state") != "FINISHED":
+                    continue
+                teams_data = match.get("teams", [])
+                if len(teams_data) < 2:
+                    continue
 
-        matches = resp.json().get("data", [])
+                team1 = teams_data[0].get("team", {}).get("longName", "")
+                team2 = teams_data[1].get("team", {}).get("longName", "")
+                series = match.get("series", {}).get("longName", "")
+                match_id = str(match.get("objectId", ""))
+                venue = match.get("ground", {}).get("longName", "")
+                status = match.get("statusText", "")
+
+                winner = ""
+                for t in teams_data:
+                    if t.get("isWinner"):
+                        winner = t.get("team", {}).get("longName", "")
+                        break
+                if not winner:
+                    for t_name in [team1, team2]:
+                        if t_name.lower().split()[0] in status.lower() and "won" in status.lower():
+                            winner = t_name
+                            break
+
+                if winner and team1 and team2:
+                    results.append({
+                        "team1": team1, "team2": team2, "winner": winner,
+                        "match_id": f"espn_{match_id}", "venue": venue,
+                        "status": status, "series": series,
+                    })
+            logger.info(f"ESPN scraped {len(results)} completed matches")
+    except Exception as e:
+        logger.debug(f"ESPN scrape failed: {e}")
+
+    # Source 2: CricAPI (if key available, as backup)
+    cricapi_key = os.getenv("CRICAPI_KEY", "")
+    if cricapi_key:
+        try:
+            resp = requests.get(
+                "https://api.cricapi.com/v1/currentMatches",
+                params={"apikey": cricapi_key, "offset": 0}, timeout=15,
+            )
+            if resp.ok:
+                for match in resp.json().get("data", []):
+                    if not match.get("matchEnded"):
+                        continue
+                    teams = match.get("teams", [])
+                    if len(teams) < 2:
+                        continue
+                    status = match.get("status", "")
+                    winner = ""
+                    for team in teams:
+                        if team.lower() in status.lower() and "won" in status.lower():
+                            winner = team
+                            break
+                    if winner:
+                        results.append({
+                            "team1": teams[0], "team2": teams[1], "winner": winner,
+                            "match_id": f"cric_{match.get('id', '')}",
+                            "venue": match.get("venue", ""), "status": status,
+                            "series": match.get("series", ""),
+                        })
+        except Exception:
+            pass
+
+    return results
+
+
+def check_completed_matches():
+    """
+    Check for newly completed IPL matches via ESPN/Cricbuzz/CricAPI.
+    Auto-trains RL model on each new result. NO API KEY REQUIRED.
+    """
+    logger.info("SCHEDULED: Checking for completed matches (auto-scrape)...")
+
+    try:
+        matches = _scrape_completed_matches()
         completed_ids = _load_completed_ids()
         newly_completed = []
 
         for match in matches:
-            if not match.get("matchStarted") or not match.get("matchEnded"):
-                continue
-            match_id = match.get("id", "")
-            if match_id in completed_ids:
+            match_id = match.get("match_id", "")
+            if not match_id or match_id in completed_ids:
                 continue
 
-            # Extract match details
-            teams = match.get("teams", [])
-            if len(teams) < 2:
+            team1 = match.get("team1", "")
+            team2 = match.get("team2", "")
+            winner = match.get("winner", "")
+            if not (team1 and team2 and winner):
                 continue
 
-            # Determine winner from status string
-            status = match.get("status", "")
-            winner = ""
-            for team in teams:
-                if team.lower() in status.lower() and "won" in status.lower():
-                    winner = team
-                    break
-
-            if not winner:
+            # Only IPL matches
+            if not _is_ipl_match(team1, team2, match.get("series", "")):
                 continue
 
-            team1 = teams[0]
-            team2 = teams[1]
+            team1 = _normalize_team(team1)
+            team2 = _normalize_team(team2)
+            winner = _normalize_team(winner)
 
-            logger.info(f"COMPLETED MATCH: {team1} vs {team2} — Winner: {winner}")
+            logger.info(f"AUTO-DETECTED IPL: {team1} vs {team2} — Winner: {winner}")
 
-            # Auto-train with RL
             try:
                 _process_completed_match(team1, team2, winner, match)
             except Exception as e:
@@ -205,21 +309,30 @@ def check_completed_matches():
         _save_completed_ids(completed_ids)
 
         if newly_completed:
-            # Notify admin
             admin_id = os.getenv("ADMIN_CHAT_ID", "")
             if admin_id:
                 msg = "🔄 *Auto-Training Complete*\n\n"
                 for m in newly_completed:
                     msg += f"✅ {m}\n"
-                msg += f"\n🤖 Models retrained with RL correction"
+                msg += "\n🤖 Models retrained with RL correction"
                 _send_telegram(admin_id, msg)
-
-            logger.info(f"Processed {len(newly_completed)} newly completed matches")
+            logger.info(f"Auto-processed {len(newly_completed)} newly completed IPL matches")
         else:
-            logger.info("No new completed matches found")
+            logger.info("No new completed IPL matches found")
 
     except Exception as e:
         logger.error(f"Match completion check failed: {e}")
+
+
+def manual_process_result(team1: str, team2: str, winner: str) -> dict:
+    """
+    Manually process a match result through RL (admin command fallback).
+    Returns RL result dict.
+    """
+    team1 = _normalize_team(team1)
+    team2 = _normalize_team(team2)
+    winner = _normalize_team(winner)
+    return _process_completed_match(team1, team2, winner, {})
 
 
 def _process_completed_match(team1: str, team2: str, winner: str, match_data: dict):
