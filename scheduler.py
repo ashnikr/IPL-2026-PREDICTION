@@ -691,16 +691,8 @@ def run_scheduler():
             name="Check innings break for ultra-premium",
         )
 
-        # Live ball-by-ball every 2 min during match hours
-        scheduler.add_job(
-            live_ball_by_ball,
-            IntervalTrigger(minutes=2),
-            id="live_bbb",
-            name="Live ball-by-ball updates",
-        )
-
         logger.info("=" * 60)
-        logger.info("IPL 2026 SCHEDULER STARTED — Full Season Engine")
+        logger.info("IPL 2026 SCHEDULER STARTED")
         logger.info("=" * 60)
         for job in scheduler.get_jobs():
             logger.info(f"  ✅ {job.name} ({job.trigger})")

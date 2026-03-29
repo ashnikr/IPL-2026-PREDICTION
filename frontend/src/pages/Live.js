@@ -40,8 +40,8 @@ export default function Live() {
   return (
     <div>
       <div className="page-header">
-        <h1>Live Mid-Match Predictor</h1>
-        <p>Predict outcome after 1st innings based on score, pitch, and team strengths</p>
+        <h1>After 1st Innings Prediction</h1>
+        <p>Who will win? Enter 1st innings score — AI predicts chase outcome</p>
       </div>
 
       <div className="grid-2">

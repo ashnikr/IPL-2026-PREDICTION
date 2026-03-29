@@ -19,9 +19,7 @@ const PLAN_COLORS = {
 
 export default function Pricing() {
   const [plans, setPlans] = useState({});
-  const [email, setEmail] = useState("");
   const [selectedPlan, setSelectedPlan] = useState("");
-  const [message, setMessage] = useState("");
 
   useEffect(() => {
     fetch(`${API_BASE}/plans`)
@@ -30,21 +28,9 @@ export default function Pricing() {
       .catch(() => {});
   }, []);
 
-  const handleSubscribe = async (planKey) => {
+  const handleSubscribe = (planKey) => {
     setSelectedPlan(planKey);
-
-    if (planKey === "free") {
-      if (!email) return setMessage("Enter your email first");
-      await fetch(`${API_BASE}/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name: "" }),
-      });
-      setMessage("You're registered on the Free plan! Start predicting now.");
-      return;
-    }
-
-    // Redirect to payment page
+    if (planKey === "free") return;
     window.location.href = `/payment?plan=${planKey}`;
   };
 
@@ -52,25 +38,8 @@ export default function Pricing() {
     <div>
       <div className="page-header" style={{ textAlign: "center" }}>
         <h1>Choose Your Plan</h1>
-        <p>Unlock the full power of AI-driven cricket predictions</p>
+        <p>Pre-match predictions + After 1st innings predictions + Dream11 XI</p>
       </div>
-
-      <div className="form-group" style={{ maxWidth: 400, margin: "0 auto 32px" }}>
-        <input
-          className="form-control"
-          type="email"
-          placeholder="Enter your email to get started"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{ textAlign: "center", fontSize: 16 }}
-        />
-      </div>
-
-      {message && (
-        <div className="card" style={{ maxWidth: 600, margin: "0 auto 24px", textAlign: "center" }}>
-          <p style={{ color: "var(--green)" }}>{message}</p>
-        </div>
-      )}
 
       <div className="grid-4">
         {Object.entries(plans).map(([key, plan]) => (
@@ -83,16 +52,6 @@ export default function Pricing() {
               overflow: "hidden",
             }}
           >
-            {key === "ultra_premium" && (
-              <div style={{
-                position: "absolute", top: 12, right: -30,
-                background: "linear-gradient(135deg, #00c853, #00e676)", color: "white",
-                padding: "2px 40px", fontSize: 11, fontWeight: 700,
-                transform: "rotate(45deg)",
-              }}>
-                BEST VALUE
-              </div>
-            )}
             {key === "pro" && (
               <div style={{
                 position: "absolute", top: 12, right: -30,
@@ -114,7 +73,6 @@ export default function Pricing() {
                       ₹{plan.price_inr}
                     </span>
                     <span style={{ color: "var(--text-muted)", fontSize: 14 }}>/month</span>
-                    <div style={{ fontSize: 12, color: "var(--text-muted)" }}>(${plan.price_usd}/mo)</div>
                   </>
                 ) : (
                   <span style={{ fontSize: 32, fontWeight: 800, color: "var(--green)" }}>FREE</span>
@@ -131,47 +89,15 @@ export default function Pricing() {
               ))}
             </div>
 
-            <div style={{ fontSize: 12, color: "var(--text-muted)", marginBottom: 16 }}>
-              {plan.predictions_per_day === -1
-                ? "Unlimited predictions"
-                : `${plan.predictions_per_day} predictions/day`}
-            </div>
-
             <button
               className={key === "pro" ? "btn btn-primary" : "btn btn-secondary"}
               style={{ width: "100%" }}
               onClick={() => handleSubscribe(key)}
             >
-              {key === "free" ? "Get Started" : "Subscribe"}
+              {key === "free" ? "Free Access" : `Pay ₹${plan.price_inr} via UPI`}
             </button>
           </div>
         ))}
-      </div>
-
-      {/* Revenue info for owner */}
-      <div className="card" style={{ marginTop: 40, textAlign: "center" }}>
-        <h3 className="card-title" style={{ marginBottom: 8 }}>Revenue Streams</h3>
-        <p style={{ color: "var(--text-secondary)", fontSize: 14 }}>
-          Subscriptions + Fantasy Affiliates + Google AdSense + API-as-a-Service + Telegram Bot
-        </p>
-        <div className="grid-4" style={{ marginTop: 20 }}>
-          <div className="stat-card">
-            <div className="stat-value" style={{ fontSize: 20, color: "var(--accent)" }}>₹199-₹999</div>
-            <div className="stat-label">Subscriptions</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value" style={{ fontSize: 20, color: "var(--green)" }}>₹50-₹500</div>
-            <div className="stat-label">Per Referral</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value" style={{ fontSize: 20, color: "var(--blue)" }}>₹15 CPM</div>
-            <div className="stat-label">Ad Revenue</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value" style={{ fontSize: 20, color: "var(--purple)" }}>5+</div>
-            <div className="stat-label">Revenue Streams</div>
-          </div>
-        </div>
       </div>
     </div>
   );

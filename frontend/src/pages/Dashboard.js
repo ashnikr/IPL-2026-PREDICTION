@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { healthCheck, predictToday, getTeams } from "../api";
 import Loading from "../components/Loading";
 import ProbBar from "../components/ProbBar";
-import { FiZap, FiStar, FiRadio, FiUsers } from "react-icons/fi";
+import { FiZap, FiStar, FiRadio } from "react-icons/fi";
 
 export default function Dashboard() {
   const [health, setHealth] = useState(null);
@@ -30,7 +30,7 @@ export default function Dashboard() {
     <div>
       <div className="page-header">
         <h1>IPL 2026 AI Prediction Hub</h1>
-        <p>10 AI Agents + 8 ML Models + LLM Analysis + Fantasy Cricket</p>
+        <p>8 ML Models — Pre-Match & Post 1st Innings Predictions + Dream11 XI</p>
       </div>
 
       {/* Quick Stats */}
@@ -42,40 +42,35 @@ export default function Dashboard() {
           <div className="stat-label">API Status</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value" style={{ color: "var(--accent)" }}>10</div>
-          <div className="stat-label">AI Agents</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-value" style={{ color: "var(--blue)" }}>8</div>
+          <div className="stat-value" style={{ color: "var(--accent)" }}>8</div>
           <div className="stat-label">ML Models</div>
         </div>
         <div className="stat-card">
-          <div className="stat-value" style={{ color: "var(--purple)" }}>{teams.length}</div>
-          <div className="stat-label">Teams</div>
+          <div className="stat-value" style={{ color: "var(--blue)" }}>{teams.length}</div>
+          <div className="stat-label">IPL Teams</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-value" style={{ color: "var(--purple)" }}>2</div>
+          <div className="stat-label">Prediction Modes</div>
         </div>
       </div>
 
       {/* Quick Actions */}
-      <div className="grid-4" style={{ marginBottom: 28 }}>
+      <div className="grid-3" style={{ marginBottom: 28 }}>
         <Link to="/predict" className="card" style={{ textDecoration: "none", textAlign: "center" }}>
           <FiZap size={28} color="var(--accent)" />
-          <h3 style={{ marginTop: 8, fontSize: 15 }}>Match Predictor</h3>
-          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>Predict any match</p>
+          <h3 style={{ marginTop: 8, fontSize: 15 }}>Pre-Match Prediction</h3>
+          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>Pitch, form, H2H, weather, toss</p>
         </Link>
-        <Link to="/agents" className="card" style={{ textDecoration: "none", textAlign: "center" }}>
-          <FiUsers size={28} color="var(--blue)" />
-          <h3 style={{ marginTop: 8, fontSize: 15 }}>10 AI Agents</h3>
-          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>Deep analysis + LLM</p>
+        <Link to="/innings" className="card" style={{ textDecoration: "none", textAlign: "center" }}>
+          <FiRadio size={28} color="var(--blue)" />
+          <h3 style={{ marginTop: 8, fontSize: 15 }}>After 1st Innings</h3>
+          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>Who wins from current score?</p>
         </Link>
         <Link to="/dream11" className="card" style={{ textDecoration: "none", textAlign: "center" }}>
           <FiStar size={28} color="var(--yellow)" />
-          <h3 style={{ marginTop: 8, fontSize: 15 }}>Dream11 XI</h3>
-          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>Fantasy team picks</p>
-        </Link>
-        <Link to="/live" className="card" style={{ textDecoration: "none", textAlign: "center" }}>
-          <FiRadio size={28} color="var(--red)" />
-          <h3 style={{ marginTop: 8, fontSize: 15 }}>Live Predictor</h3>
-          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>Mid-match prediction</p>
+          <h3 style={{ marginTop: 8, fontSize: 15 }}>Dream11 Fantasy XI</h3>
+          <p style={{ fontSize: 12, color: "var(--text-muted)" }}>Best 11 from actual Playing XI</p>
         </Link>
       </div>
 
@@ -106,7 +101,7 @@ export default function Dashboard() {
           ))
         ) : (
           <p style={{ color: "var(--text-muted)", textAlign: "center", padding: 40 }}>
-            No matches scheduled for today. Use the Match Predictor to predict any matchup!
+            No matches scheduled for today. Use Pre-Match Prediction to predict any matchup!
           </p>
         )}
       </div>

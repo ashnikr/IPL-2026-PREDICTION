@@ -1,8 +1,8 @@
 import { NavLink } from "react-router-dom";
 import {
-  FiHome, FiZap, FiUsers, FiStar,
-  FiTrendingUp, FiCalendar, FiBarChart2, FiTarget,
-  FiRadio, FiAward, FiFileText, FiDollarSign
+  FiHome, FiZap, FiStar,
+  FiTrendingUp, FiCalendar, FiTarget,
+  FiRadio, FiFileText, FiDollarSign
 } from "react-icons/fi";
 
 const sections = [
@@ -10,14 +10,8 @@ const sections = [
     title: "Predictions",
     links: [
       { to: "/", icon: <FiHome />, label: "Dashboard" },
-      { to: "/predict", icon: <FiZap />, label: "Match Predictor" },
-      { to: "/agents", icon: <FiUsers />, label: "AI Agents (10)" },
-      { to: "/live", icon: <FiRadio />, label: "Live Mid-Match" },
-    ],
-  },
-  {
-    title: "Fantasy",
-    links: [
+      { to: "/predict", icon: <FiZap />, label: "Pre-Match Prediction" },
+      { to: "/innings", icon: <FiRadio />, label: "After 1st Innings" },
       { to: "/dream11", icon: <FiStar />, label: "Dream11 Fantasy XI" },
     ],
   },
@@ -25,17 +19,14 @@ const sections = [
     title: "Intelligence",
     links: [
       { to: "/form", icon: <FiTrendingUp />, label: "Team Form" },
-      { to: "/news", icon: <FiFileText />, label: "News & Sentiment" },
       { to: "/h2h", icon: <FiTarget />, label: "Head to Head" },
-      { to: "/strengths", icon: <FiBarChart2 />, label: "Team Rankings" },
+      { to: "/news", icon: <FiFileText />, label: "News & Sentiment" },
     ],
   },
   {
     title: "Data",
     links: [
       { to: "/schedule", icon: <FiCalendar />, label: "Schedule" },
-      { to: "/squads", icon: <FiUsers />, label: "Squads" },
-      { to: "/accuracy", icon: <FiAward />, label: "Accuracy" },
     ],
   },
   {
@@ -43,7 +34,6 @@ const sections = [
     links: [
       { to: "/pricing", icon: <FiStar />, label: "Plans & Pricing" },
       { to: "/payment?plan=pro", icon: <FiDollarSign />, label: "Pay via UPI" },
-      { to: "/earn", icon: <FiDollarSign />, label: "Earn Money" },
     ],
   },
 ];
@@ -53,7 +43,7 @@ export default function Sidebar({ open, onClose }) {
     <aside className={`sidebar${open ? " open" : ""}`} onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()}>
         <div className="sidebar-logo">IPL 2026 AI</div>
-        <div className="sidebar-subtitle">10 Agents + 8 ML Models</div>
+        <div className="sidebar-subtitle">8 ML Models + Cricket AI</div>
         {sections.map((s) => (
           <div className="nav-section" key={s.title}>
             <div className="nav-section-title">{s.title}</div>
