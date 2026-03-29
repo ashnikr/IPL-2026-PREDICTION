@@ -33,7 +33,7 @@ const sections = [
     title: "Subscribe",
     links: [
       { to: "/pricing", icon: <FiStar />, label: "Plans & Pricing" },
-      { to: "/payment?plan=pro", icon: <FiDollarSign />, label: "Pay via UPI" },
+      { to: "/payment?plan=basic", icon: <FiDollarSign />, label: "Pay via UPI" },
     ],
   },
 ];
